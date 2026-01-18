@@ -1,0 +1,21 @@
+# Environment variables
+.env
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.venv/
+
+# Logs
+*.log
+/tmp/obs_stream_control.log
+
+# macOS specific files
+.DS_Store
+
+# Editor backup files
+*~
+    

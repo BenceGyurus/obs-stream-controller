@@ -1,0 +1,3 @@
+python-dotenv
+obs-websocket-py
+google-api-python-client
