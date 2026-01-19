@@ -1,0 +1,17 @@
+# Git and Docker files
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+
+# Environment variables - should be passed at runtime, not built into the image
+.env
+
+# Python specific
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# macOS specific
+.DS_Store

@@ -1,0 +1,39 @@
+:root {
+    --bs-body-font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: #212529;
+}
+
+.card {
+    border: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+.saving-indicator {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s, opacity 0.2s linear;
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.saving-indicator.show {
+    visibility: visible;
+    opacity: 1;
+}
+
+#youtube-status.bg-secondary,
+#obs-status.bg-secondary {
+    color: #fff;
+}
+
+#youtube-status.bg-success,
+#obs-status.bg-success {
+    color: #fff;
+}
+
+#youtube-status.bg-danger,
+#obs-status.bg-danger {
+    color: #fff;
+}

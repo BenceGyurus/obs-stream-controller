@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-translate="title">OBS Stream Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h1 data-translate="header">OBS Stream Control</h1>
+            <div class="d-flex align-items-center">
+                <select id="language-switcher" class="form-select form-select-sm me-3" style="width: auto;">
+                    <option value="en">English</option>
+                    <option value="hu">Magyar</option>
+                </select>
+                <div id="saving-indicator" class="saving-indicator" data-translate="saving">Saving...</div>
+            </div>
+        </header>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title" data-translate="status_title">Status</h2>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span data-translate="youtube_status_label">YouTube Stream:</span>
+                            <span id="youtube-status" class="badge bg-secondary" data-translate="status_unknown">Unknown</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span data-translate="obs_status_label">OBS Stream:</span>
+                            <span id="obs-status" class="badge bg-secondary" data-translate="status_unknown">Unknown</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span data-translate="last_check_label">Last Check:</span>
+                            <span id="last-check" class="text-muted">N/A</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span data-translate="next_check_label">Next Check in:</span>
+                            <span id="next-check-countdown" class="text-muted">N/A</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title" data-translate="controls_title">Controls</h2>
+                        <div class="mb-3">
+                            <label for="check-interval" class="form-label" data-translate="interval_label">Check Interval (seconds)</label>
+                            <input type="number" class="form-control" id="check-interval" value="900">
+                            <small id="effective-interval" class="form-text text-muted"></small>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="live-mode">
+                            <label class="form-check-label" for="live-mode" data-translate="live_mode_label">Live Mode (1-minute interval)</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="youtube-enabled" checked>
+                            <label class="form-check-label" for="youtube-enabled" data-translate="youtube_check_label">Enable YouTube Check</label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="obs-enabled" checked>
+                            <label class="form-check-label" for="obs-enabled" data-translate="obs_control_label">Enable OBS Control</label>
+                        </div>
+                        <button id="check-now-btn" class="btn btn-primary w-100" data-translate="check_now_button">Check Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title" data-translate="history_title">Stream History</h2>
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>

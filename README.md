@@ -1,101 +1,143 @@
-# OBS Stream Watchdog
+# OBS Stream Control
 
-A Python script that monitors the status of a YouTube stream and automatically starts the stream in OBS Studio via `obs-websocket` if it goes offline.
+A Python application that monitors the status of a YouTube stream and automatically starts the stream in OBS Studio if it goes offline. This version features a modern, real-time, bilingual web dashboard for advanced control and monitoring.
 
-## Prerequisites
+---
 
-Before you begin, ensure you have the following:
+## English
 
-1.  **OBS Studio with `obs-websocket` plugin:**
-    *   Install the `obs-websocket` plugin. For installation instructions, see the official [obs-websocket releases page](https://github.com/obsproject/obs-websocket/releases).
-    *   In OBS, go to **Tools -> WebSocket Server Settings**, enable the server, set a port (default: 4455), and **set a strong password**.
+### Features
 
-2.  **YouTube Data API Key:**
-    *   Go to the [Google Cloud Console](https://console.cloud.google.com/).
-    *   Create a project, enable the **"YouTube Data API v3"**, and create an API key.
+-   **Modern Dashboard UI:** A sleek, real-time web interface to monitor and control the application.
+-   **Bilingual Support:** Switch between English and Hungarian on the fly.
+-   **Real-time Status:** See the live status of your YouTube and OBS streams.
+-   **Uptime History Graph:** Visualize the uptime of your YouTube and OBS streams over the last 200 checks.
+-   **Dynamic Controls:**
+    -   Enable or disable YouTube checking and OBS control with modern switches.
+    -   Set a custom check interval.
+    -   Toggle "Live Mode" for rapid 1-minute checks.
+-   **Manual Check:** Trigger a manual status check at any time.
+-   **Next Check Countdown:** A timer shows you exactly when the next automatic check will occur.
 
-3.  **Your YouTube Channel ID:**
-    *   Find this in your [YouTube advanced account settings](https://www.youtube.com/account_advanced).
+### Configuration
 
-4.  **Python 3:** Ensure Python 3 is installed on your system.
-
-## Installation and Configuration
-
-1.  **Clone or download the project files** into a directory on your computer.
-
-2.  **Install Python Dependencies:**
-    Open a terminal in the project directory and run:
+1.  **Copy `.env.example` to `.env`:**
     ```bash
-    pip3 install -r requirements.txt
+    cp .env.example .env
     ```
 
-3.  **Create and Edit the `.env` file:**
-    *   Copy the `.env.example` file to `.env`:
-        ```bash
-        cp .env.example .env
-        ```
-    *   Open the new `.env` file and replace the placeholder values with your actual credentials.
-        ```ini
-        YOUTUBE_API_KEY="YOUR_YOUTUBE_API_KEY_HERE"
-        YOUTUBE_CHANNEL_ID="YOUR_YOUTUBE_CHANNEL_ID_HERE"
-        OBS_WEBSOCKET_HOST="localhost"
-        OBS_WEBSOCKET_PORT="4455"
-        OBS_WEBSOCKET_PASSWORD="YOUR_OBS_WEBSOCKET_PASSWORD_HERE"
-        ```
+2.  **Edit the `.env` file** and fill in your actual credentials.
 
-## Usage
+    ```ini
+    # Your YouTube Data API Key from Google Cloud Console
+    YOUTUBE_API_KEY="YOUR_YOUTUBE_API_KEY_HERE"
 
-### Manual Testing (Recommended First)
+    # Your YouTube Channel ID
+    YOUTUBE_CHANNEL_ID="YOUR_YOUTUBE_CHANNEL_ID_HERE"
 
-Before setting up automation, run the script manually to ensure your configuration is correct:
+    # --- IMPORTANT ---
+    # If running with Docker, use this special hostname to connect to OBS on your main machine.
+    # Do not use 'localhost' or '127.0.0.1'.
+    OBS_WEBSOCKET_HOST="host.docker.internal"
 
-```bash
-python3 main.py
-```
-Check the output for any errors. The script should log whether the stream is LIVE or OFFLINE.
+    # The port for the OBS WebSocket Server (default is 4455)
+    OBS_WEBSOCKET_PORT="4455"
 
-## Deployment: Automated Execution
+    # The password you set in the OBS WebSocket Server settings
+    OBS_WEBSOCKET_PASSWORD="YOUR_OBS_WEBSOCKET_PASSWORD_HERE"
+    ```
 
-To avoid exceeding the YouTube API's daily quota, it is critical to run the script at a reasonable interval. **A 15-minute interval is recommended.**
+### Running with Docker (Recommended)
 
-### Option 1: macOS & Linux (using `cron`)
-
-1.  Open your crontab file for editing:
+1.  **Build the Docker Image:**
+    From the project's root directory, run the build command:
     ```bash
-    crontab -e
+    docker build -t obs-stream-control .
     ```
 
-2.  Add the following line to schedule the script to run every 15 minutes. Make sure to replace the paths with the absolute paths to your python3 executable and `main.py` script.
-
-    ```cron
-    */15 * * * * /usr/bin/python3 /path/to/your/project/obs-stream-control/main.py >> /tmp/obs_stream_control.log 2>&1
+2.  **Run the Docker Container:**
+    This command will start your container, forward the necessary port for the web interface, and securely pass your credentials from the `.env` file.
+    ```bash
+    docker run --name obs-stream-control-container -p 8000:8000 --env-file .env -d --restart always obs-stream-control
     ```
-    *   You can find your python3 path by running `which python3`.
-    *   The `>> /tmp/obs_stream_control.log 2>&1` part logs all output, which is useful for debugging.
 
-3.  Save and exit the editor.
+3.  **Access the Dashboard:**
+    Open your web browser and navigate to:
+    **http://localhost:8000**
 
-### Option 2: Windows (using Task Scheduler)
+### Managing the Container
 
-1.  **Open Task Scheduler:** Press `Win + R`, type `taskschd.msc`, and press Enter.
+-   **View logs:** `docker logs -f obs-stream-control-container`
+-   **Stop the container:** `docker stop obs-stream-control-container`
+-   **Start the container:** `docker start obs-stream-control-container`
+-   **Remove the container:** `docker rm obs-stream-control-container`
 
-2.  **Create a Basic Task:** In the right-hand Actions pane, click "Create Basic Task...".
-    *   **Name:** Give it a name like `OBS Stream Watchdog`.
-    *   **Trigger:** Select "Daily" and click Next. Leave the daily time as default.
-    *   **Action:** Select "Start a program".
+---
 
-3.  **Configure the Program/Script:**
-    *   **Program/script:** Enter the full path to your `pythonw.exe` executable (using `pythonw.exe` prevents a console window from popping up). You can find the path by running `where pythonw.exe` in Command Prompt.
-    *   **Add arguments:** Enter the full path to your `main.py` script.
-    *   **Start in:** Enter the full path to the project directory where `main.py` and `.env` are located. This is crucial for the script to find the `.env` file.
+## Magyar (Hungarian)
 
-4.  **Set the Repetition Interval:**
-    *   Click "Finish" to create the task.
-    *   In the main Task Scheduler library, find your new task, right-click it, and select "Properties".
-    *   Go to the **Triggers** tab and click "Edit...".
-    *   Under "Advanced settings", check the box for **"Repeat task every:"** and set the value to **"15 minutes"**. Set the duration to **"Indefinitely"**.
-    *   Click "OK" on all windows to save.
+### Funkciók
 
-Your script is now deployed and will run automatically.
-# obs-stream-controller
-# obs-stream-controller
+-   **Modern Irányítópult:** Egy letisztult, valós idejű webes felület az alkalmazás figyeléséhez és vezérléséhez.
+-   **Kétnyelvű Támogatás:** Váltson angol és magyar nyelv között menet közben.
+-   **Valós Idejű Állapot:** Kövesse élőben a YouTube és OBS streamek állapotát.
+-   **Előzmény Grafikon:** Vizualizálja a YouTube és OBS streamek üzemidejét az utolsó 200 ellenőrzés alapján.
+-   **Dinamikus Vezérlők:**
+    -   Engedélyezze vagy tiltsa le a YouTube-ellenőrzést és az OBS-vezérlést modern kapcsolókkal.
+    -   Állítson be egyéni ellenőrzési intervallumot.
+    -   Kapcsolja be az "Élő Módot" a gyors, 1 perces ellenőrzésekhez.
+-   **Manuális Ellenőrzés:** Bármikor indíthat manuális állapot-ellenőrzést.
+-   **Következő Ellenőrzés Visszaszámláló:** Egy időzítő mutatja, hogy pontosan mikor következik a következő automatikus ellenőrzés.
+
+### Konfiguráció
+
+1.  **Másolja a `.env.example` fájlt `.env` néven:**
+    ```bash
+    cp .env.example .env
+    ```
+
+2.  **Szerkessze a `.env` fájlt** és adja meg a saját hitelesítési adatait.
+
+    ```ini
+    # A Google Cloud Console-ból származó YouTube Data API kulcsod
+    YOUTUBE_API_KEY="YOUR_YOUTUBE_API_KEY_HERE"
+
+    # A YouTube csatornaazonosítód
+    YOUTUBE_CHANNEL_ID="YOUR_YOUTUBE_CHANNEL_ID_HERE"
+
+    # --- FONTOS ---
+    # Ha Dockerrel futtatod, ezt a speciális hosztnevet használd az OBS-hez való csatlakozáshoz a fő gépeden.
+    # Ne használd a 'localhost' vagy '127.0.0.1' címeket.
+    OBS_WEBSOCKET_HOST="host.docker.internal"
+
+    # Az OBS WebSocket szerver portja (alapértelmezett: 4455)
+    OBS_WEBSOCKET_PORT="4455"
+
+    # A jelszó, amit az OBS WebSocket szerver beállításaiban megadtál
+    OBS_WEBSOCKET_PASSWORD="YOUR_OBS_WEBSOCKET_PASSWORD_HERE"
+    ```
+
+### Futtatás Dockerrel (Ajánlott)
+
+1.  **Docker Kép Építése:**
+    A projekt gyökérkönyvtárából futtassa az építési parancsot:
+    ```bash
+    docker build -t obs-stream-control .
+    ```
+
+2.  **Docker Konténer Futtatása:**
+    Ez a parancs elindítja a konténert, továbbítja a webes felülethez szükséges portot, és biztonságosan átadja a hitelesítési adatokat a `.env` fájlból.
+    ```bash
+    docker run --name obs-stream-control-container -p 8000:8000 --env-file .env -d --restart always obs-stream-control
+    ```
+
+3.  **Az Irányítópult Elérése:**
+    Nyissa meg a webböngészőt és navigáljon a következő címre:
+    **http://localhost:8000**
+
+### A Konténer Kezelése
+
+-   **Napló megtekintése:** `docker logs -f obs-stream-control-container`
+-   **Konténer leállítása:** `docker stop obs-stream-control-container`
+-   **Konténer indítása:** `docker start obs-stream-control-container`
+-   **Konténer eltávolítása:** `docker rm obs-stream-control-container`
