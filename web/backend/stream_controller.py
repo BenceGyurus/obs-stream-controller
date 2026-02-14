@@ -30,10 +30,14 @@ logging.basicConfig(
 # --- YouTube OAuth2 Scopes ---
 SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
 
-def get_authenticated_youtube_service(client_secret_file):
+def get_authenticated_youtube_service(client_secret_file, headless=False):
     """
     Authenticates and returns a YouTube API service object with OAuth2.
     Handles token refresh automatically.
+    
+    Args:
+        client_secret_file: Path to the OAuth2 client secret JSON file
+        headless: If True, uses console-based auth (for servers/NAS without browser)
     """
     creds = None
     token_file = Path('token.json')
@@ -63,7 +67,38 @@ def get_authenticated_youtube_service(client_secret_file):
             
             logging.info("Starting OAuth2 authentication flow...")
             flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
-            creds = flow.run_local_server(port=0)
+            
+            # Choose authentication method based on environment
+            if headless or os.getenv('OAUTH_HEADLESS', 'false').lower() == 'true':
+                # Console-based authentication for headless environments (NAS, servers)
+                logging.info("=" * 70)
+                logging.info("HEADLESS AUTHENTICATION MODE")
+                logging.info("=" * 70)
+                logging.info("")
+                logging.info("Please complete the following steps on ANY device with a browser:")
+                logging.info("")
+                
+                # Run console flow
+                creds = flow.run_console()
+                
+                logging.info("")
+                logging.info("Authentication successful!")
+                logging.info("=" * 70)
+            else:
+                # Browser-based authentication (default)
+                try:
+                    logging.info("Opening browser for authentication...")
+                    creds = flow.run_local_server(port=0)
+                except Exception as e:
+                    logging.warning(f"Browser-based auth failed: {e}")
+                    logging.info("Falling back to console-based authentication...")
+                    logging.info("=" * 70)
+                    logging.info("Please complete authentication on ANY device with a browser:")
+                    logging.info("")
+                    creds = flow.run_console()
+                    logging.info("")
+                    logging.info("Authentication successful!")
+                    logging.info("=" * 70)
         
         # Save credentials for future use
         with open('token.json', 'w') as token:

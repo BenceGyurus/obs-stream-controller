@@ -62,6 +62,7 @@ async def stream_watchdog():
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "").strip("'\"")
     YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID", "").strip("'\"")
     YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "client_secret.json").strip("'\"")
+    OAUTH_HEADLESS = os.getenv("OAUTH_HEADLESS", "false").lower() == "true"
     OBS_HOST = os.getenv("OBS_WEBSOCKET_HOST", "localhost").strip("'\"")
     OBS_PORT = int(os.getenv("OBS_WEBSOCKET_PORT", "4455").strip("'\""))
     OBS_PASSWORD = os.getenv("OBS_WEBSOCKET_PASSWORD", "").strip("'\"")
@@ -73,7 +74,10 @@ async def stream_watchdog():
     youtube_service = None
     try:
         logging.info("Attempting to authenticate with YouTube API...")
-        youtube_service = get_authenticated_youtube_service(YOUTUBE_CLIENT_SECRET)
+        youtube_service = get_authenticated_youtube_service(
+            YOUTUBE_CLIENT_SECRET, 
+            headless=OAUTH_HEADLESS
+        )
         if youtube_service:
             logging.info("Successfully authenticated with YouTube API for broadcast management.")
         else:

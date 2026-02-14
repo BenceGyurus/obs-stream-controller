@@ -85,7 +85,11 @@ For detailed setup instructions, see [SETUP.md](SETUP.md)
     # --- IMPORTANT ---
     # If running with Docker, use this special hostname to connect to OBS on your main machine.
     # Do not use 'localhost' or '127.0.0.1'.
+    # For Docker Desktop (Mac/Windows):
     OBS_WEBSOCKET_HOST="host.docker.internal"
+    
+    # For Synology NAS: Use the actual IP address of the machine running OBS
+    # OBS_WEBSOCKET_HOST="192.168.1.100"
 
     # The port for the OBS WebSocket Server (default is 4455)
     OBS_WEBSOCKET_PORT="4455"
@@ -170,6 +174,50 @@ On the first run, the application will open a browser window for OAuth2 authenti
 3.  **Access the Dashboard:**
     Open your web browser and navigate to:
     **http://localhost:8000**
+
+#### Running on Synology NAS
+
+Synology NAS requires special configuration due to Docker implementation differences.
+
+1.  **Use the Synology-specific compose file:**
+    ```bash
+    # Copy the Synology version
+    cp docker-compose.synology.yml docker-compose.yml
+    ```
+
+2.  **Edit `docker-compose.yml` and update:**
+    - Replace `YOUR_USERNAME` with your GitHub username
+    - Set `OBS_WEBSOCKET_HOST` to the IP address where OBS is running:
+      ```yaml
+      - OBS_WEBSOCKET_HOST=192.168.1.100  # Your OBS machine IP
+      ```
+    - Update volume paths to absolute Synology paths:
+      ```yaml
+      volumes:
+        - /volume1/docker/obs-stream-control/client_secret.json:/app/client_secret.json:ro
+        - /volume1/docker/obs-stream-control/token.json:/app/token.json
+      ```
+
+3.  **Create the directory on your NAS:**
+    ```bash
+    mkdir -p /volume1/docker/obs-stream-control
+    cd /volume1/docker/obs-stream-control
+    ```
+
+4.  **Copy your files:**
+    - Upload `client_secret.json` to `/volume1/docker/obs-stream-control/`
+    - Upload `.env` file with your credentials
+    - Upload `docker-compose.yml`
+
+5.  **Start the container:**
+    ```bash
+    docker-compose up -d
+    ```
+
+**Synology Notes:**
+- `host.docker.internal` doesn't work on Synology - use actual IP addresses
+- CPU limits are not supported - they are removed from the Synology compose file
+- Use Synology's Container Manager UI for easier management
 
 ### Managing the Container
 
@@ -330,6 +378,50 @@ Az első futtatáskor az alkalmazás megnyit egy böngészőablakot az OAuth2 hi
 3.  **Az Irányítópult Elérése:**
     Nyissa meg a webböngészőt és navigáljon a következő címre:
     **http://localhost:8000**
+
+#### Futtatás Synology NAS-on
+
+A Synology NAS speciális konfigurációt igényel a Docker implementáció eltérései miatt.
+
+1.  **Használd a Synology-specifikus compose fájlt:**
+    ```bash
+    # Másold le a Synology verziót
+    cp docker-compose.synology.yml docker-compose.yml
+    ```
+
+2.  **Szerkeszd a `docker-compose.yml` fájlt:**
+    - Cseréld le a `YOUR_USERNAME` részt a GitHub felhasználónevedre
+    - Állítsd be az `OBS_WEBSOCKET_HOST`-ot arra az IP címre, ahol az OBS fut:
+      ```yaml
+      - OBS_WEBSOCKET_HOST=192.168.1.100  # Az OBS gép IP címe
+      ```
+    - Frissítsd a volume útvonalakat Synology abszolút útvonalakra:
+      ```yaml
+      volumes:
+        - /volume1/docker/obs-stream-control/client_secret.json:/app/client_secret.json:ro
+        - /volume1/docker/obs-stream-control/token.json:/app/token.json
+      ```
+
+3.  **Hozd létre a könyvtárat a NAS-on:**
+    ```bash
+    mkdir -p /volume1/docker/obs-stream-control
+    cd /volume1/docker/obs-stream-control
+    ```
+
+4.  **Másold át a fájlokat:**
+    - Töltsd fel a `client_secret.json` fájlt a `/volume1/docker/obs-stream-control/` könyvtárba
+    - Töltsd fel a `.env` fájlt a hitelesítési adatokkal
+    - Töltsd fel a `docker-compose.yml` fájlt
+
+5.  **Indítsd el a konténert:**
+    ```bash
+    docker-compose up -d
+    ```
+
+**Synology Megjegyzések:**
+- A `host.docker.internal` nem működik Synology-n - használj valódi IP címeket
+- A CPU limitek nem támogatottak - ezek el vannak távolítva a Synology compose fájlból
+- Használd a Synology Container Manager UI-t a könnyebb kezeléshez
 
 ### A Konténer Kezelése
 

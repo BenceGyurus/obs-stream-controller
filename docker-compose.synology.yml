@@ -15,37 +15,31 @@ services:
       - YOUTUBE_CHANNEL_ID=${YOUTUBE_CHANNEL_ID}
       - YOUTUBE_CLIENT_SECRET_FILE=/app/client_secret.json
       
+      # OAuth Headless Mode (FONTOS Synology NAS-hoz!)
+      # Ez engedélyezi a böngésző nélküli hitelesítést
+      - OAUTH_HEADLESS=true
+      
       # OBS WebSocket beállítások
-      - OBS_WEBSOCKET_HOST=host.docker.internal
+      # FONTOS: Synology NAS-on használd a valódi IP címet
+      # Pl: - OBS_WEBSOCKET_HOST=192.168.1.100
+      - OBS_WEBSOCKET_HOST=${OBS_WEBSOCKET_HOST:-192.168.1.1}
       - OBS_WEBSOCKET_PORT=${OBS_WEBSOCKET_PORT:-4455}
       - OBS_WEBSOCKET_PASSWORD=${OBS_WEBSOCKET_PASSWORD}
     
     volumes:
       # OAuth credentials fájlok
+      # Synology-n használj abszolút útvonalakat, pl:
+      # - /volume1/docker/obs-stream-control/client_secret.json:/app/client_secret.json:ro
       - ./client_secret.json:/app/client_secret.json:ro
       - ./token.json:/app/token.json
-      # Opcionális: custom .env fájl használata
-      # - ./.env:/app/.env:ro
     
-    # Docker Desktop for Mac/Windows esetén ez szükséges
-    # a host gépen futó OBS eléréséhez
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    # Synology NAS - network_mode host használata az OBS eléréséhez
+    # Ha az OBS ugyanazon a gépen fut mint a NAS, használd ezt:
+    # network_mode: host
+    # FIGYELEM: Ha network_mode: host -ot használsz, töröld a ports szekciót!
     
-    # Resource limitek (Synology kompatibilis formátum)
-    # Ha Synology NAS-on futtatod és hibát ad, kommenteld ki ezt a blokkot
+    # Resource limitek (opcionális - ha problémát okoz, töröld)
     mem_limit: 512m
-    mem_reservation: 256m
-    # CPU limitek Synology-n általában nem támogatottak
-    # cpus: 1.0
-    
-    # Opcionális: health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     
     # Logging konfiguráció
     logging:
@@ -53,4 +47,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
