@@ -12,6 +12,8 @@
     "interval_label": "Check Interval (seconds)",
     "effective_interval": "Effective: {seconds} seconds",
     "live_mode_label": "Live Mode (1-minute interval)",
+    "live_mode_timeout_label": "Live Mode Timeout (minutes)",
+    "live_mode_countdown": "Auto-disable in: {time}",
     "youtube_check_label": "Enable YouTube Check",
     "obs_control_label": "Enable OBS Control",
     "language_label": "Language",

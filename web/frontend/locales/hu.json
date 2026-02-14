@@ -12,6 +12,8 @@
     "interval_label": "Ellenőrzési Intervallum (másodperc)",
     "effective_interval": "Effektív: {seconds} másodperc",
     "live_mode_label": "Élő Mód (1 perces intervallum)",
+    "live_mode_timeout_label": "Élő Mód Időtúllépés (perc)",
+    "live_mode_countdown": "Automatikus kikapcsolás: {time}",
     "youtube_check_label": "YouTube Ellenőrzés Engedélyezése",
     "obs_control_label": "OBS Vezérlés Engedélyezése",
     "language_label": "Nyelv",

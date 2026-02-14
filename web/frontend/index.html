@@ -60,6 +60,11 @@
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="live-mode">
                             <label class="form-check-label" for="live-mode" data-translate="live_mode_label">Live Mode (1-minute interval)</label>
+                            <small id="live-mode-countdown" class="form-text text-muted d-block"></small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="live-mode-timeout" class="form-label" data-translate="live_mode_timeout_label">Live Mode Timeout (minutes)</label>
+                            <input type="number" class="form-control" id="live-mode-timeout" value="15">
                         </div>
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="youtube-enabled" checked>

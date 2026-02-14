@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  obs-stream-control:
+    image: ghcr.io/YOUR_USERNAME/obs-stream-control:latest
+    # Ha helyben build-eled:
+    # build: .
+    container_name: obs-stream-control
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # YouTube API beállítások
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - YOUTUBE_CHANNEL_ID=${YOUTUBE_CHANNEL_ID}
+      - YOUTUBE_CLIENT_SECRET_FILE=/app/client_secret.json
+      
+      # OBS WebSocket beállítások
+      - OBS_WEBSOCKET_HOST=host.docker.internal
+      - OBS_WEBSOCKET_PORT=${OBS_WEBSOCKET_PORT:-4455}
+      - OBS_WEBSOCKET_PASSWORD=${OBS_WEBSOCKET_PASSWORD}
+    
+    volumes:
+      # OAuth credentials fájlok
+      - ./client_secret.json:/app/client_secret.json:ro
+      - ./token.json:/app/token.json
+      # Opcionális: custom .env fájl használata
+      # - ./.env:/app/.env:ro
+    
+    # Docker Desktop for Mac/Windows esetén ez szükséges
+    # a host gépen futó OBS eléréséhez
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    # Opcionális: resource limitek
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Opcionális: health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging konfiguráció
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

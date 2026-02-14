@@ -1,6 +1,12 @@
 # Environment variables
 .env
 
+# OAuth2 credentials (IMPORTANT: Never commit these!)
+client_secret.json
+client_secret_*.json
+token.json
+credentials.json
+
 # Python bytecode
 __pycache__/
 *.pyc
