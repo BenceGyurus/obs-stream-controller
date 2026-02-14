@@ -8,10 +8,41 @@ A Python application that monitors the status of a YouTube stream and automatica
 
 ## Quick Start
 
+### ⚡ Super Fast Setup (Recommended)
+
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/obs-stream-control.git
-cd obs-stream-control
+git clone https://github.com/BenceGyurus/obs-stream-controller.git
+cd obs-stream-controller
+
+# 2. Download client_secret.json from Google Cloud Console
+# (See SETUP.md for instructions)
+
+# 3. Run the automated setup script
+./setup_oauth.sh
+
+# 4. Done! Access dashboard at http://YOUR_NAS_IP:8000
+```
+
+**That's it!** The script automatically:
+- ✅ Sets up OAuth authentication
+- ✅ Creates token.json
+- ✅ Uploads to your NAS
+- ✅ Configures permissions
+- ✅ Restarts the container
+
+See [QUICKSTART.md](QUICKSTART.md) for details.
+
+---
+
+### 📘 Manual Setup
+
+If you prefer manual setup or the script doesn't work:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/BenceGyurus/obs-stream-controller.git
+cd obs-stream-controller
 
 # 2. Setup environment variables
 cp .env.example .env
@@ -20,10 +51,13 @@ cp .env.example .env
 # 3. Add your OAuth credentials
 # Download client_secret.json from Google Cloud Console to project root
 
-# 4. Start with Docker Compose
+# 4. Authenticate (creates token.json)
+python3 authenticate.py
+
+# 5. Start with Docker Compose
 docker-compose up -d
 
-# 5. Access dashboard
+# 6. Access dashboard
 # Open http://localhost:8000 in your browser
 ```
 
