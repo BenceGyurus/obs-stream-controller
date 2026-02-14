@@ -53,6 +53,7 @@ services:
     restart: always
     ports:
       - "8000:8000"
+      - "8080:8080"  # OAuth callback port (csak első hitelesítéshez kell)
     environment:
       - YOUTUBE_API_KEY=YOUR_API_KEY
       - YOUTUBE_CHANNEL_ID=YOUR_CHANNEL_ID
@@ -97,85 +98,67 @@ services:
 
 ---
 
-## 3. OAuth2 Hitelesítés - Headless Mód (EGYSZERŰ!)
+## 3. OAuth2 Hitelesítés
 
-**ÚJ FUNKCIÓ:** Most már nem kell SSH böngésző trükk! A headless mód lehetővé teszi, hogy **bármilyen eszközről** (telefon, laptop, tablet) bejelentkezz, még akkor is, ha a NAS-on fut az alkalmazás.
+Kétféle módon hitelesíthetsz:
 
-### 3.1. Első Indítás Docker Compose-zal
+### Módszer 1: Előzetes hitelesítés (Ajánlott - EGYSZERŰ!)
 
-```bash
-cd /volume1/docker/obs-stream-control
-docker-compose up
-```
+**A LEGEGYSZERŰBB:** Futtasd az `authenticate.py` scriptet a laptopod/asztali géped-en:
 
-**FONTOS:** Ne használd a `-d` flaget az első alkalommal, mert látni akarod a hitelesítési utasításokat!
-
-### 3.2. Headless OAuth Flow (Böngésző Nélkül a NAS-on)
-
-1. Az alkalmazás elindul és a logokban megjelenik:
+1. Másold le a projekt fájlokat egy gépre ahol van böngésző
+2. Telepítsd a függőségeket:
+   ```bash
+   pip install google-auth-oauthlib
    ```
-   ======================================================================
-   HEADLESS AUTHENTICATION MODE
-   ======================================================================
-   
-   Please complete the following steps on ANY device with a browser:
-   
-   1. Visit this URL: https://accounts.google.com/o/oauth2/auth?...
-   
-   2. Log in to your Google account
-   
-   3. Grant the requested permissions
-   
-   4. Copy the authorization code
-   
-   5. Enter the code below:
-   
-   Enter the authorization code: _
+3. Másold ide a `client_secret.json` fájlt
+4. Futtasd:
+   ```bash
+   python3 authenticate.py
+   ```
+5. Böngésző nyílik → bejelentkezel → engedélyezed
+6. Létrejön a `token.json` fájl
+7. Másold a `token.json` fájlt a NAS-ra: `/volume1/docker/obs-stream-control/token.json`
+8. Indítsd el a Docker containert - már kész is!
+
+### Módszer 2: OAuth callback szerver a Docker containerben
+
+Ha az első módszer nem működik, használhatod a Docker container beépített OAuth szerverét:
+
+1. **Első indítás:** Indítsd el a containert **előtérben** (ne `-d` flaggel):
+   ```bash
+   cd /volume1/docker/obs-stream-control
+   docker-compose up
    ```
 
-2. **BÁRMILYEN ESZKÖZRŐL** (telefon, laptop, tablet):
-   - Másold ki a megjelenő URL-t
-   - Nyisd meg egy böngészőben
-   - Jelentkezz be a YouTube fiókodba
-   - Engedd meg az engedélyeket
+2. **OAuth hitelesítés:**
+   - Az alkalmazás elindul és a logokban megjelenik egy URL
+   - **VAGY** Ha van beállítva `OAUTH_HEADLESS=false` (alapértelmezett), a böngésző automatikusan megnyílik
+   - **VAGY** Ha `OAUTH_HEADLESS=true`, kézzel kell megnyitni az URL-t
 
-3. A Google megjelenít egy **kódot** (pl. `4/0AY0e-g7...`)
+3. **Hitelesítési folyamat:**
+   - Nyisd meg a böngészőt és menj a `http://NAS_IP_CÍME:8080` címre
+   - A böngésző átirányít a Google bejelentkezéshez
+   - Jelentkezz be és engedd meg az engedélyeket
+   - A Google visszairányít a `http://NAS_IP_CÍME:8080/?code=...` címre
+   - Az alkalmazás automatikusan elmenti a tokent
 
-4. **Másold ki ezt a kódot**
-
-5. **Illeszd be** a NAS SSH konzoljába (ahol fut a docker-compose up)
-
-6. Az alkalmazás folytatja:
+4. **Sikeres hitelesítés után:**
    ```
    Authentication successful!
    ======================================================================
    Credentials saved to token.json
    ```
 
-7. Állítsd le az alkalmazást (`Ctrl+C`)
-
-8. Most már indíthatod háttérben:
+5. Állítsd le (`Ctrl+C`) és indítsd újra háttérben:
    ```bash
    docker-compose up -d
    ```
 
-### 3.3. Alternatív: SSH-n keresztül (ha nincs docker-compose)
-
-```bash
-cd /volume1/docker/obs-stream-control
-
-docker run -it --rm \
-  -v /volume1/docker/obs-stream-control/client_secret.json:/app/client_secret.json \
-  -v /volume1/docker/obs-stream-control/token.json:/app/token.json \
-  -e YOUTUBE_API_KEY=YOUR_API_KEY \
-  -e YOUTUBE_CHANNEL_ID=YOUR_CHANNEL_ID \
-  -e YOUTUBE_CLIENT_SECRET_FILE=/app/client_secret.json \
-  -e OAUTH_HEADLESS=true \
-  -e OBS_WEBSOCKET_HOST=192.168.1.XXX \
-  -e OBS_WEBSOCKET_PORT=4455 \
-  -e OBS_WEBSOCKET_PASSWORD=YOUR_OBS_PASSWORD \
-  ghcr.io/YOUR_USERNAME/obs-stream-control:latest
-```
+**FONTOS:** 
+- A 8080-as portot csak az első hitelesítéshez kell
+- A `token.json` újratermelődik automatikusan amikor lejár
+- Ha a `token.json` létezik és érvényes, nincs szükség újra hitelesítésre
 
 Kövesd ugyanazokat a lépéseket mint fent.
 

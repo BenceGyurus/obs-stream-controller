@@ -70,35 +70,48 @@ def get_authenticated_youtube_service(client_secret_file, headless=False):
             
             # Choose authentication method based on environment
             if headless or os.getenv('OAUTH_HEADLESS', 'false').lower() == 'true':
-                # Console-based authentication for headless environments (NAS, servers)
-                logging.info("=" * 70)
-                logging.info("HEADLESS AUTHENTICATION MODE")
-                logging.info("=" * 70)
-                logging.info("")
-                logging.info("Please complete the following steps on ANY device with a browser:")
-                logging.info("")
-                
-                # Run console flow
-                creds = flow.run_console()
-                
-                logging.info("")
-                logging.info("Authentication successful!")
-                logging.info("=" * 70)
+                # Headless mode - requires pre-authenticated token.json
+                logging.error("=" * 70)
+                logging.error("AUTHENTICATION REQUIRED")
+                logging.error("=" * 70)
+                logging.error("")
+                logging.error("Running in HEADLESS mode but token.json is missing or invalid.")
+                logging.error("")
+                logging.error("Please authenticate using one of these methods:")
+                logging.error("")
+                logging.error("METHOD 1 (Recommended): Use the standalone authentication script")
+                logging.error("  1. On a machine with a browser, run: python3 authenticate.py")
+                logging.error("  2. Copy the generated token.json to your NAS/server")
+                logging.error("  3. Mount it in docker-compose.yml:")
+                logging.error("     volumes:")
+                logging.error("       - ./token.json:/app/token.json:ro")
+                logging.error("")
+                logging.error("METHOD 2: Temporarily set OAUTH_HEADLESS=false and run with -it flags")
+                logging.error("  docker run -it -e OAUTH_HEADLESS=false ...")
+                logging.error("")
+                logging.error("See SYNOLOGY.md for detailed instructions.")
+                logging.error("=" * 70)
+                return None
             else:
                 # Browser-based authentication (default)
                 try:
                     logging.info("Opening browser for authentication...")
-                    creds = flow.run_local_server(port=0)
+                    creds = flow.run_local_server(host='0.0.0.0', port=8080, open_browser=True)
                 except Exception as e:
-                    logging.warning(f"Browser-based auth failed: {e}")
-                    logging.info("Falling back to console-based authentication...")
-                    logging.info("=" * 70)
-                    logging.info("Please complete authentication on ANY device with a browser:")
-                    logging.info("")
-                    creds = flow.run_console()
-                    logging.info("")
-                    logging.info("Authentication successful!")
-                    logging.info("=" * 70)
+                    logging.error(f"Browser-based authentication failed: {e}")
+                    logging.error("")
+                    logging.error("=" * 70)
+                    logging.error("AUTHENTICATION FAILED")
+                    logging.error("=" * 70)
+                    logging.error("")
+                    logging.error("Please use the standalone authentication script:")
+                    logging.error("  1. Run: python3 authenticate.py")
+                    logging.error("  2. Copy token.json to the application directory")
+                    logging.error("  3. Restart the application")
+                    logging.error("")
+                    logging.error("See SETUP.md for detailed instructions.")
+                    logging.error("=" * 70)
+                    return None
         
         # Save credentials for future use
         with open('token.json', 'w') as token:

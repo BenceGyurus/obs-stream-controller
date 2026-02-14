@@ -62,10 +62,13 @@ Ez az útmutató lépésről lépésre végigvezet az OBS Stream Control beáll�
 4. Térj vissza a **"Hitelesítő adatok létrehozása" > "OAuth kliens-azonosító"** menüpontra
 5. Alkalmazás típusa: válaszd a **"Asztali alkalmazás"** opciót
 6. Név: add meg a kliens nevét (pl. "OBS Stream Control Desktop")
-7. Kattints a **"Létrehozás"** gombra
-8. **Fontos:** Töltsd le a JSON fájlt a megjelenő ablakból
-9. Nevezd át a letöltött fájlt **`client_secret.json`** névre
-10. Helyezd a `client_secret.json` fájlt a projekt gyökérkönyvtárába
+7. **Fontos:** Az "Engedélyezett átirányítási URI-k" részhez add hozzá:
+   - `http://0.0.0.0:8080/` (hálózati hozzáféréshez)
+   - `http://localhost:8080/` (helyi hozzáféréshez)
+8. Kattints a **"Létrehozás"** gombra
+9. **Fontos:** Töltsd le a JSON fájlt a megjelenő ablakból
+10. Nevezd át a letöltött fájlt **`client_secret.json`** névre
+11. Helyezd a `client_secret.json` fájlt a projekt gyökérkönyvtárába
 
 ### 2.5. OAuth Scopes Hozzáadása
 
