@@ -139,12 +139,17 @@ def get_active_broadcast(youtube_service, channel_id):
             return None
         
         # Filter for broadcasts that are live, ready, or testing
-        active_statuses = ['live', 'ready', 'testing']
-        for broadcast in response['items']:
-            status = broadcast['status']['lifeCycleStatus']
-            if status in active_statuses:
-                logging.info(f"Found active broadcast: {broadcast['snippet']['title']} (Status: {status})")
-                return broadcast
+        # Prioritize: live > ready > testing
+        priority_order = ['live', 'ready', 'testing']
+        
+        for priority_status in priority_order:
+            for broadcast in response['items']:
+                status = broadcast['status']['lifeCycleStatus']
+                if status == priority_status:
+                    logging.info(f"Found active broadcast: {broadcast['snippet']['title']} (Status: {status})")
+                    if len([b for b in response['items'] if b['status']['lifeCycleStatus'] in priority_order]) > 1:
+                        logging.warning(f"Multiple active broadcasts found! Using the first '{priority_status}' one.")
+                    return broadcast
         
         logging.info("No active or ready broadcasts found.")
         return None
