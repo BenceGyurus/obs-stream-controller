@@ -81,6 +81,7 @@ For detailed setup instructions, see [SETUP.md](SETUP.md)
 -   **Next Check Countdown:** A timer shows you exactly when the next automatic check will occur.
 -   **YouTube Broadcast Reset:** Automatically resets YouTube broadcast connection when OBS restarts, eliminating the need to manually re-enter stream keys.
 -   **Smart Broadcast Selection:** Automatically prioritizes LIVE broadcasts when multiple exist. See [MULTIPLE_BROADCASTS.md](MULTIPLE_BROADCASTS.md) for details.
+-   **Manual Broadcast Override:** Specify a specific broadcast ID if auto-detection fails. See [BROADCAST_SELECTION.md](BROADCAST_SELECTION.md) for details.
 
 ### Configuration
 
@@ -116,6 +117,9 @@ For detailed setup instructions, see [SETUP.md](SETUP.md)
 
     # Path to your OAuth2 client secret file (for broadcast management)
     YOUTUBE_CLIENT_SECRET_FILE="client_secret.json"
+    
+    # Optional: Specify a specific broadcast ID (leave empty for auto-detection)
+    YOUTUBE_BROADCAST_ID=""
 
     # --- IMPORTANT ---
     # If running with Docker, use this special hostname to connect to OBS on your main machine.

@@ -62,6 +62,8 @@ async def stream_watchdog():
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "").strip("'\"")
     YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID", "").strip("'\"")
     YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "client_secret.json").strip("'\"")
+    YOUTUBE_BROADCAST_ID = os.getenv("YOUTUBE_BROADCAST_ID", "").strip("'\"") or None
+    YOUTUBE_BROADCAST_RESET = os.getenv("YOUTUBE_BROADCAST_RESET", "false").lower() == "true"
     OAUTH_HEADLESS = os.getenv("OAUTH_HEADLESS", "false").lower() == "true"
     OBS_HOST = os.getenv("OBS_WEBSOCKET_HOST", "localhost").strip("'\"")
     OBS_PORT = int(os.getenv("OBS_WEBSOCKET_PORT", "4455").strip("'\""))
@@ -72,19 +74,24 @@ async def stream_watchdog():
     
     # Try to get authenticated YouTube service for broadcast management
     youtube_service = None
-    try:
-        logging.info("Attempting to authenticate with YouTube API...")
-        youtube_service = get_authenticated_youtube_service(
-            YOUTUBE_CLIENT_SECRET, 
-            headless=OAUTH_HEADLESS
-        )
-        if youtube_service:
-            logging.info("Successfully authenticated with YouTube API for broadcast management.")
-        else:
-            logging.warning("YouTube OAuth2 authentication failed. Broadcast reset will not be available.")
-    except Exception as e:
-        logging.warning(f"Could not initialize YouTube OAuth2 service: {e}")
-        logging.warning("Stream will work without broadcast reset feature.")
+    if YOUTUBE_BROADCAST_RESET:
+        try:
+            logging.info("Attempting to authenticate with YouTube API...")
+            youtube_service = get_authenticated_youtube_service(
+                YOUTUBE_CLIENT_SECRET, 
+                headless=OAUTH_HEADLESS
+            )
+            if youtube_service:
+                logging.info("Successfully authenticated with YouTube API for broadcast management.")
+                if YOUTUBE_BROADCAST_ID:
+                    logging.info(f"Using manually specified broadcast ID: {YOUTUBE_BROADCAST_ID}")
+            else:
+                logging.warning("YouTube OAuth2 authentication failed. Broadcast reset will not be available.")
+        except Exception as e:
+            logging.warning(f"Could not initialize YouTube OAuth2 service: {e}")
+            logging.warning("Stream will work without broadcast reset feature.")
+    else:
+        logging.info("Broadcast reset is DISABLED (YOUTUBE_BROADCAST_RESET=false). OBS will start without resetting YouTube broadcast.")
 
     while True:
         if state.live_mode and state.live_mode_end_timestamp and datetime.now(timezone.utc) > state.live_mode_end_timestamp:
@@ -105,13 +112,14 @@ async def stream_watchdog():
                             stop_obs_stream(OBS_HOST, OBS_PORT, OBS_PASSWORD)
                             await asyncio.sleep(5)
                         logging.info("Attempting to start OBS stream.")
-                        # Use the enhanced start function with broadcast reset
+                        # Use the enhanced start function with broadcast reset (if enabled)
                         start_obs_stream(
                             OBS_HOST, 
                             OBS_PORT, 
                             OBS_PASSWORD,
-                            youtube_service=youtube_service,
-                            channel_id=YOUTUBE_CHANNEL_ID if youtube_service else None
+                            youtube_service=youtube_service if YOUTUBE_BROADCAST_RESET else None,
+                            channel_id=YOUTUBE_CHANNEL_ID if (youtube_service and YOUTUBE_BROADCAST_RESET) else None,
+                            broadcast_id=YOUTUBE_BROADCAST_ID if YOUTUBE_BROADCAST_RESET else None
                         )
                         await asyncio.sleep(2)
                         state.obs_is_streaming = get_obs_stream_status(OBS_HOST, OBS_PORT, OBS_PASSWORD)

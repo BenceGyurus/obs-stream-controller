@@ -312,6 +312,9 @@ INFO - StartStream command sent to OBS.
 ### "No active broadcast found"
 - Győződj meg róla, hogy van egy "ready" vagy "live" állapotú YouTube élő adásod
 - Ellenőrizd a YouTube Studio-ban az élő adás állapotát
+- Ha az alkalmazás nem találja az élő adásokat, nézd meg a logokat - kiírja az összes elérhető broadcast-ot
+- **Megoldás:** Használd a `YOUTUBE_BROADCAST_ID` környezeti változót, hogy manuálisan megadd a broadcast ID-t
+  - Lásd részletes útmutatót: [BROADCAST_SELECTION.md](BROADCAST_SELECTION.md)
 
 ### OBS nem csatlakozik automatikusan
 - Ellenőrizd az OBS WebSocket beállításokat (port, jelszó)

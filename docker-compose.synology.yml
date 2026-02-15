@@ -14,6 +14,8 @@ services:
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
       - YOUTUBE_CHANNEL_ID=${YOUTUBE_CHANNEL_ID}
       - YOUTUBE_CLIENT_SECRET_FILE=/app/client_secret.json
+      - YOUTUBE_BROADCAST_ID=${YOUTUBE_BROADCAST_ID:-}
+      - YOUTUBE_BROADCAST_RESET=${YOUTUBE_BROADCAST_RESET:-false}
       
       # OAuth Headless Mode (FONTOS Synology NAS-hoz!)
       # Ez engedélyezi a böngésző nélküli hitelesítést
