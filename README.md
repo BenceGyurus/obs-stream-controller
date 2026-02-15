@@ -80,6 +80,7 @@ For detailed setup instructions, see [SETUP.md](SETUP.md)
 -   **Manual Check:** Trigger a manual status check at any time.
 -   **Next Check Countdown:** A timer shows you exactly when the next automatic check will occur.
 -   **YouTube Broadcast Reset:** Automatically resets YouTube broadcast connection when OBS restarts, eliminating the need to manually re-enter stream keys.
+-   **Smart Broadcast Selection:** Automatically prioritizes LIVE broadcasts when multiple exist. See [MULTIPLE_BROADCASTS.md](MULTIPLE_BROADCASTS.md) for details.
 
 ### Configuration
 
