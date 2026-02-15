@@ -43,22 +43,33 @@ fi
 echo -e "${GREEN}✓ Python3 telepítve: $(python3 --version)${NC}"
 echo ""
 
-# 3. Ellenőrizd pip telepítést
-if ! command -v pip3 &> /dev/null; then
-    echo -e "${RED}ERROR: pip3 nincs telepítve!${NC}"
-    exit 1
+# 3. Hozz létre virtual environment
+if [ ! -d "venv" ]; then
+    echo "Python virtual environment létrehozása..."
+    python3 -m venv venv || {
+        echo -e "${RED}ERROR: Nem sikerült virtual environment-et létrehozni!${NC}"
+        echo "Próbáld: python3 -m pip install virtualenv"
+        exit 1
+    }
+    echo -e "${GREEN}✓ Virtual environment létrehozva${NC}"
+else
+    echo -e "${GREEN}✓ Virtual environment már létezik${NC}"
 fi
-
-echo -e "${GREEN}✓ pip3 telepítve${NC}"
 echo ""
 
-# 4. Telepítsd a szükséges library-t
+# 4. Aktiváld a virtual environment-et
+echo "Virtual environment aktiválása..."
+source venv/bin/activate
+echo -e "${GREEN}✓ Virtual environment aktiválva${NC}"
+echo ""
+
+# 5. Telepítsd a szükséges library-t
 echo "Szükséges library telepítése..."
-pip3 install --quiet google-auth-oauthlib 2>&1 | grep -v "already satisfied" || true
+pip install --quiet google-auth-oauthlib 2>&1 | grep -v "already satisfied" || true
 echo -e "${GREEN}✓ google-auth-oauthlib telepítve${NC}"
 echo ""
 
-# 5. Futtasd az authenticate.py scriptet
+# 6. Futtasd az authenticate.py scriptet
 echo "========================================================================"
 echo "OAuth hitelesítés indítása..."
 echo "========================================================================"
@@ -67,8 +78,9 @@ echo "A böngésző automatikusan megnyílik."
 echo "Jelentkezz be a YouTube fiókodba és engedd meg az engedélyeket."
 echo ""
 
-if ! python3 authenticate.py; then
+if ! python authenticate.py; then
     echo -e "${RED}ERROR: Hitelesítés sikertelen!${NC}"
+    deactivate
     exit 1
 fi
 

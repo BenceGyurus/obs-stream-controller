@@ -96,7 +96,7 @@ def get_authenticated_youtube_service(client_secret_file, headless=False):
                 # Browser-based authentication (default)
                 try:
                     logging.info("Opening browser for authentication...")
-                    creds = flow.run_local_server(host='0.0.0.0', port=8080, open_browser=True)
+                    creds = flow.run_local_server(host='localhost', port=8080, open_browser=True)
                 except Exception as e:
                     logging.error(f"Browser-based authentication failed: {e}")
                     logging.error("")

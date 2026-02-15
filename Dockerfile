@@ -14,8 +14,6 @@ COPY . .
 
 # Expose the port the app runs on
 EXPOSE 8000
-# Expose OAuth callback port for authentication
-EXPOSE 8080
 
 # Command to run the application
 # Use Uvicorn to run the FastAPI application

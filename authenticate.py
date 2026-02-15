@@ -78,7 +78,7 @@ def main():
                 print("Opening browser for authentication...")
                 print("If a browser doesn't open automatically, use the manual method below.")
                 print()
-                creds = flow.run_local_server(host='0.0.0.0', port=8080, open_browser=True)
+                creds = flow.run_local_server(host='localhost', port=8080, open_browser=True)
             except Exception as e:
                 print(f"Browser-based authentication failed: {e}")
                 print()
@@ -97,8 +97,6 @@ def main():
                 print(f"   {auth_url}")
                 print()
                 print("2. After authorizing, you'll be redirected to a URL like:")
-                print("   http://0.0.0.0:8080/?code=AUTHORIZATION_CODE&scope=...")
-                print("   OR")
                 print("   http://localhost:8080/?code=AUTHORIZATION_CODE&scope=...")
                 print()
                 print("3. Copy the ENTIRE redirect URL and paste it below:")

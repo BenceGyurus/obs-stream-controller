@@ -9,7 +9,6 @@ services:
     restart: always
     ports:
       - "8000:8000"
-      - "8080:8080"  # OAuth authentication callback port
     environment:
       # YouTube API beállítások
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
