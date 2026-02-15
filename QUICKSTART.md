@@ -18,9 +18,26 @@ Ez a script **automatikusan** beállítja az OAuth hitelesítést a Synology NAS
 
 ### 2️⃣ Futtasd a setup scriptet
 
+**Mac / Linux:**
 ```bash
 ./setup_oauth.sh
 ```
+
+**Windows (CMD):**
+```cmd
+setup_oauth.bat
+```
+
+**Windows (PowerShell):**
+```powershell
+.\setup_oauth.ps1
+```
+
+> **Megjegyzés Windows-hoz:**  
+> Ha PowerShell execution policy hibát kapsz, futtasd PowerShell-t **Administrator** módban:
+> ```powershell
+> Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
 
 ### 3️⃣ Kész! ✅
 
@@ -83,12 +100,30 @@ ssh admin@10.2.34.15
 # Control Panel > Terminal & SNMP > Enable SSH service
 ```
 
-### Problem 3: Permission denied
+### Problem 3: Permission denied (Mac/Linux)
 
 **Megoldás:**
 ```bash
 # Add meg a futtatási jogot
 chmod +x setup_oauth.sh
+```
+
+### Problem 4: PowerShell execution policy (Windows)
+
+**Megoldás:**
+```powershell
+# Futtasd PowerShell-t Administrator módban:
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Problem 5: SCP nincs telepítve (Windows)
+
+**Megoldás:**
+```
+Telepítsd a Git for Windows-t (tartalmaz SCP-t):
+https://git-scm.com/download/win
+
+Vagy használd WinSCP-t a token.json feltöltéséhez.
 ```
 
 ---
@@ -118,7 +153,9 @@ A: **NEM!** Csak egyszer kell. A `token.json` automatikusan újratermelődik ami
 A: A `token.json` a host gépen marad, nem vész el.
 
 **Q: Működik Mac-en / Linux-on / Windows-on?**  
-A: **Mac ✅ | Linux ✅ | Windows ❌** (Windows-on használd a WSL-t vagy kézi módszert)
+A: **Mac ✅ | Linux ✅ | Windows ✅**
+- Mac/Linux: `./setup_oauth.sh`
+- Windows: `setup_oauth.bat` vagy `setup_oauth.ps1`
 
 **Q: Kell hozzá Python?**  
 A: **Igen**, Python 3.6+ kell. Ellenőrizd: `python3 --version`
