@@ -21,6 +21,18 @@
     "next_check_label": "Next Check in:",
     "check_now_button": "Check Now",
     "history_title": "Stream History",
+    "telegram_title": "Telegram Alerts",
+    "telegram_enable_label": "Enable Telegram Alerts",
+    "telegram_bot_token_label": "Bot Token",
+    "telegram_chat_id_label": "Chat ID",
+    "telegram_notify_youtube_label": "Notify on YouTube Offline",
+    "telegram_notify_obs_label": "Notify on OBS Offline",
+    "telegram_test_button": "Send Test Message",
+    "telegram_test_success": "Test message sent",
+    "telegram_test_failed": "Telegram test failed",
+    "telegram_error_disabled": "Telegram alerts are disabled",
+    "telegram_error_missing": "Telegram bot token or chat id missing",
+    "telegram_error_send": "Telegram API error",
     "youtube_live_label": "YouTube Live",
     "obs_streaming_label": "OBS Streaming"
 }

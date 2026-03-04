@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastCheckEl = document.getElementById('last-check');
     const nextCheckCountdownEl = document.getElementById('next-check-countdown');
     const checkNowBtn = document.getElementById('check-now-btn');
+    const telegramEnabledSwitch = document.getElementById('telegram-enabled');
+    const telegramBotTokenInput = document.getElementById('telegram-bot-token');
+    const telegramChatIdInput = document.getElementById('telegram-chat-id');
+    const telegramNotifyYoutubeSwitch = document.getElementById('telegram-notify-youtube');
+    const telegramNotifyObsSwitch = document.getElementById('telegram-notify-obs');
+    const telegramTestBtn = document.getElementById('telegram-test-btn');
 
     let ws = new WebSocket(`ws://${window.location.host}/ws`);
     let currentLanguage = 'en';
@@ -57,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
         obsEnabledSwitch.checked = data.obs_enabled;
         youtubeEnabledSwitch.checked = data.youtube_enabled;
         obsEnabledSwitch.disabled = !data.youtube_enabled;
+        telegramEnabledSwitch.checked = data.telegram_enabled;
+        telegramBotTokenInput.value = data.telegram_bot_token || '';
+        telegramChatIdInput.value = data.telegram_chat_id || '';
+        telegramNotifyYoutubeSwitch.checked = data.telegram_notify_on_youtube_offline;
+        telegramNotifyObsSwitch.checked = data.telegram_notify_on_obs_offline;
 
         updateEffectiveIntervalDisplay(data.check_interval, data.live_mode);
         updateNextCheckCountdown(data.last_check_timestamp, data.check_interval, data.live_mode);
@@ -145,6 +156,42 @@ document.addEventListener('DOMContentLoaded', () => {
             sendMessage({ obs_enabled: false });
         }
     });
+    telegramEnabledSwitch.addEventListener('change', (event) => sendMessage({ telegram_enabled: event.target.checked }));
+    telegramBotTokenInput.addEventListener('change', (event) => sendMessage({ telegram_bot_token: event.target.value.trim() }));
+    telegramChatIdInput.addEventListener('change', (event) => sendMessage({ telegram_chat_id: event.target.value.trim() }));
+    telegramNotifyYoutubeSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_youtube_offline: event.target.checked }));
+    telegramNotifyObsSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_obs_offline: event.target.checked }));
+    telegramTestBtn.addEventListener('click', async () => {
+        showSavingIndicator();
+        try {
+            const response = await fetch('/api/telegram-test', { method: 'POST' });
+            const result = await response.json();
+            if (!result.ok) {
+                alert(buildTelegramErrorMessage(result));
+            } else {
+                alert(translations.telegram_test_success || 'Test message sent');
+            }
+        } catch (error) {
+            alert('Telegram test failed');
+        } finally {
+            hideSavingIndicator();
+        }
+    });
+
+    function buildTelegramErrorMessage(result) {
+        if (!result || !result.code) return translations.telegram_test_failed || 'Telegram test failed';
+        const detail = result.detail ? ` (${result.detail})` : '';
+        switch (result.code) {
+            case 'disabled':
+                return (translations.telegram_error_disabled || 'Telegram alerts are disabled') + detail;
+            case 'missing_credentials':
+                return (translations.telegram_error_missing || 'Telegram bot token or chat id missing') + detail;
+            case 'send_failed':
+                return (translations.telegram_error_send || 'Telegram API error') + detail;
+            default:
+                return (translations.telegram_test_failed || 'Telegram test failed') + detail;
+        }
+    }
     checkNowBtn.addEventListener('click', () => fetch('/api/check-now', { method: 'POST' }));
 
     function sendMessage(message) {

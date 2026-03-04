@@ -21,6 +21,18 @@
     "next_check_label": "Következő Ellenőrzés:",
     "check_now_button": "Ellenőrzés Most",
     "history_title": "Stream Előzmények",
+    "telegram_title": "Telegram Értesítések",
+    "telegram_enable_label": "Telegram Értesítések Engedélyezése",
+    "telegram_bot_token_label": "Bot Token",
+    "telegram_chat_id_label": "Chat ID",
+    "telegram_notify_youtube_label": "Értesítés, ha a YouTube offline",
+    "telegram_notify_obs_label": "Értesítés, ha az OBS offline",
+    "telegram_test_button": "Teszt üzenet küldése",
+    "telegram_test_success": "Teszt üzenet elküldve",
+    "telegram_test_failed": "Telegram teszt sikertelen",
+    "telegram_error_disabled": "A Telegram értesítések ki vannak kapcsolva",
+    "telegram_error_missing": "Hiányzik a bot token vagy a chat id",
+    "telegram_error_send": "Telegram API hiba",
     "youtube_live_label": "YouTube Élő",
     "obs_streaming_label": "OBS Közvetítés"
 }
