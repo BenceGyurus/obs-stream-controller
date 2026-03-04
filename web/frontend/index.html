@@ -74,6 +74,29 @@
                             <input class="form-check-input" type="checkbox" id="obs-enabled" checked>
                             <label class="form-check-label" for="obs-enabled" data-translate="obs_control_label">Enable OBS Control</label>
                         </div>
+                        <hr>
+                        <h3 class="card-subtitle mb-2" data-translate="telegram_title">Telegram Alerts</h3>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="telegram-enabled">
+                            <label class="form-check-label" for="telegram-enabled" data-translate="telegram_enable_label">Enable Telegram Alerts</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="telegram-bot-token" class="form-label" data-translate="telegram_bot_token_label">Bot Token</label>
+                            <input type="password" class="form-control" id="telegram-bot-token" placeholder="123456:ABC...">
+                        </div>
+                        <div class="mb-3">
+                            <label for="telegram-chat-id" class="form-label" data-translate="telegram_chat_id_label">Chat ID</label>
+                            <input type="text" class="form-control" id="telegram-chat-id" placeholder="123456789">
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="telegram-notify-youtube" checked>
+                            <label class="form-check-label" for="telegram-notify-youtube" data-translate="telegram_notify_youtube_label">Notify on YouTube Offline</label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="telegram-notify-obs" checked>
+                            <label class="form-check-label" for="telegram-notify-obs" data-translate="telegram_notify_obs_label">Notify on OBS Offline</label>
+                        </div>
+                        <button id="telegram-test-btn" class="btn btn-outline-light w-100 mb-3" data-translate="telegram_test_button">Send Test Message</button>
                         <button id="check-now-btn" class="btn btn-primary w-100" data-translate="check_now_button">Check Now</button>
                     </div>
                 </div>

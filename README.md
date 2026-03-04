@@ -162,6 +162,10 @@ On the first run, the application will open a browser window for OAuth2 authenti
     docker-compose up -d
     ```
 
+**Telegram settings persistence (optional):**
+- Set `SETTINGS_FILE=/data/settings.json` in `environment`
+- Add a volume mapping: `./data:/data`
+
 4.  **View logs:**
     ```bash
     docker-compose logs -f
@@ -186,6 +190,8 @@ On the first run, the application will open a browser window for OAuth2 authenti
       --env-file .env \
       -v $(pwd)/client_secret.json:/app/client_secret.json \
       -v $(pwd)/token.json:/app/token.json \
+      -e SETTINGS_FILE=/data/settings.json \
+      -v $(pwd)/data:/data \
       -d --restart always \
       ghcr.io/YOUR_USERNAME/obs-stream-control:latest
     ```
@@ -206,6 +212,8 @@ On the first run, the application will open a browser window for OAuth2 authenti
       --env-file .env \
       -v $(pwd)/client_secret.json:/app/client_secret.json \
       -v $(pwd)/token.json:/app/token.json \
+      -e SETTINGS_FILE=/data/settings.json \
+      -v $(pwd)/data:/data \
       -d --restart always \
       obs-stream-control
     ```
@@ -439,6 +447,13 @@ A Synology NAS speciális konfigurációt igényel a Docker implementáció elt�
       volumes:
         - /volume1/docker/obs-stream-control/client_secret.json:/app/client_secret.json:ro
         - /volume1/docker/obs-stream-control/token.json:/app/token.json
+        - /volume1/docker/obs-stream-control/data:/data
+      ```
+
+    - Adj hozzá egy beállítást a Telegram mentéshez:
+      ```yaml
+      environment:
+        - SETTINGS_FILE=/data/settings.json
       ```
 
 3.  **Hozd létre a könyvtárat a NAS-on:**
