@@ -152,6 +152,7 @@ async def stream_watchdog():
     YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "client_secret.json").strip("'\"")
     YOUTUBE_BROADCAST_ID = os.getenv("YOUTUBE_BROADCAST_ID", "").strip("'\"") or None
     YOUTUBE_BROADCAST_RESET = os.getenv("YOUTUBE_BROADCAST_RESET", "false").lower() == "true"
+    YOUTUBE_FORCE_PUBLIC_ON_RESET = os.getenv("YOUTUBE_FORCE_PUBLIC_ON_RESET", "false").lower() == "true"
     OAUTH_HEADLESS = os.getenv("OAUTH_HEADLESS", "false").lower() == "true"
     OBS_HOST = os.getenv("OBS_WEBSOCKET_HOST", "localhost").strip("'\"")
     OBS_PORT = int(os.getenv("OBS_WEBSOCKET_PORT", "4455").strip("'\""))
@@ -207,7 +208,8 @@ async def stream_watchdog():
                             OBS_PASSWORD,
                             youtube_service=youtube_service if YOUTUBE_BROADCAST_RESET else None,
                             channel_id=YOUTUBE_CHANNEL_ID if (youtube_service and YOUTUBE_BROADCAST_RESET) else None,
-                            broadcast_id=YOUTUBE_BROADCAST_ID if YOUTUBE_BROADCAST_RESET else None
+                            broadcast_id=YOUTUBE_BROADCAST_ID if YOUTUBE_BROADCAST_RESET else None,
+                            force_public=YOUTUBE_FORCE_PUBLIC_ON_RESET
                         )
                         await asyncio.sleep(2)
                         state.obs_is_streaming = get_obs_stream_status(OBS_HOST, OBS_PORT, OBS_PASSWORD)
