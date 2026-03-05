@@ -322,36 +322,32 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not state.youtube_enabled:
                     state.obs_enabled = False
                 changed = True
-            if "telegram_enabled" in data and data["telegram_enabled"] != state.telegram_enabled:
-                state.telegram_enabled = data["telegram_enabled"]
+            if "telegram_enabled" in data:
+                state.telegram_enabled = bool(data["telegram_enabled"])
                 changed = True
                 settings_changed = True
-            if "telegram_bot_token" in data and data["telegram_bot_token"] != state.telegram_bot_token:
-                state.telegram_bot_token = data["telegram_bot_token"]
+            if "telegram_bot_token" in data:
+                state.telegram_bot_token = str(data["telegram_bot_token"])
                 changed = True
                 settings_changed = True
-            if "telegram_chat_id" in data and data["telegram_chat_id"] != state.telegram_chat_id:
-                state.telegram_chat_id = data["telegram_chat_id"]
+            if "telegram_chat_id" in data:
+                state.telegram_chat_id = str(data["telegram_chat_id"])
                 changed = True
                 settings_changed = True
-            if (
-                "telegram_notify_on_youtube_offline" in data
-                and data["telegram_notify_on_youtube_offline"] != state.telegram_notify_on_youtube_offline
-            ):
-                state.telegram_notify_on_youtube_offline = data["telegram_notify_on_youtube_offline"]
+            if "telegram_notify_on_youtube_offline" in data:
+                state.telegram_notify_on_youtube_offline = bool(data["telegram_notify_on_youtube_offline"])
                 changed = True
                 settings_changed = True
-            if (
-                "telegram_notify_on_obs_offline" in data
-                and data["telegram_notify_on_obs_offline"] != state.telegram_notify_on_obs_offline
-            ):
-                state.telegram_notify_on_obs_offline = data["telegram_notify_on_obs_offline"]
+            if "telegram_notify_on_obs_offline" in data:
+                state.telegram_notify_on_obs_offline = bool(data["telegram_notify_on_obs_offline"])
                 changed = True
                 settings_changed = True
             
             if changed:
                 if settings_changed:
                     save_settings()
+                # Broadcast the updated state back immediately to confirm
+                await manager.broadcast_state()
                 check_now.set()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
