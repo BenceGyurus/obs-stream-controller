@@ -196,12 +196,13 @@ def get_active_broadcast(youtube_service, channel_id, broadcast_id=None):
         logging.error(f"Unexpected error while getting broadcasts: {e}")
         return None
 
-def reset_broadcast_connection(youtube_service, broadcast_id):
+def reset_broadcast_connection(youtube_service, broadcast_id, force_public=False):
     """
     Resets a broadcast by transitioning it through states to refresh the connection.
     This helps resolve issues where OBS can't reconnect after a restart.
     
-    Preserves the original privacy status (public/unlisted/private) during transitions.
+    Preserves the original privacy status (public/unlisted/private) during transitions,
+    unless force_public is True, in which case it sets it to public.
     
     Returns True if successful, False otherwise.
     """
@@ -220,7 +221,13 @@ def reset_broadcast_connection(youtube_service, broadcast_id):
         broadcast = response['items'][0]
         current_status = broadcast['status']['lifeCycleStatus']
         original_privacy = broadcast['status']['privacyStatus']
+        broadcast_title = broadcast['snippet']['title']
+        
+        # Determine the target privacy status
+        target_privacy = 'public' if force_public else original_privacy
         logging.info(f"Current broadcast status: {current_status}, Privacy: {original_privacy}")
+        if force_public and original_privacy != 'public':
+            logging.info(f"Forcing privacy status to 'public' after reset.")
         
         # Transition strategy based on current status
         if current_status == 'live':
@@ -244,27 +251,30 @@ def reset_broadcast_connection(youtube_service, broadcast_id):
                 part='status'
             ).execute()
             
-            # Restore original privacy status if it changed
+            # Ensure target privacy status is set
             time.sleep(1)
-            current_broadcast = youtube_service.liveBroadcasts().list(
+            current_broadcast_req = youtube_service.liveBroadcasts().list(
                 part='status',
                 id=broadcast_id
             ).execute()
             
-            if current_broadcast['items']:
-                new_privacy = current_broadcast['items'][0]['status']['privacyStatus']
-                if new_privacy != original_privacy:
-                    logging.info(f"Privacy status changed to '{new_privacy}'. Restoring to '{original_privacy}'...")
+            if current_broadcast_req['items']:
+                new_privacy = current_broadcast_req['items'][0]['status']['privacyStatus']
+                if new_privacy != target_privacy:
+                    logging.info(f"Privacy status is '{new_privacy}'. Setting to '{target_privacy}'...")
                     youtube_service.liveBroadcasts().update(
-                        part='status',
+                        part='status,snippet',
                         body={
                             'id': broadcast_id,
                             'status': {
-                                'privacyStatus': original_privacy
+                                'privacyStatus': target_privacy
+                            },
+                            'snippet': {
+                                'title': broadcast_title
                             }
                         }
                     ).execute()
-                    logging.info(f"Privacy status restored to '{original_privacy}'.")
+                    logging.info(f"Privacy status updated to '{target_privacy}'.")
             
             logging.info("Broadcast transitioned back to 'live'.")
             return True
@@ -288,27 +298,30 @@ def reset_broadcast_connection(youtube_service, broadcast_id):
                 part='status'
             ).execute()
             
-            # Restore original privacy status if it changed
+            # Ensure target privacy status is set
             time.sleep(1)
-            current_broadcast = youtube_service.liveBroadcasts().list(
+            current_broadcast_req = youtube_service.liveBroadcasts().list(
                 part='status',
                 id=broadcast_id
             ).execute()
             
-            if current_broadcast['items']:
-                new_privacy = current_broadcast['items'][0]['status']['privacyStatus']
-                if new_privacy != original_privacy:
-                    logging.info(f"Privacy status changed to '{new_privacy}'. Restoring to '{original_privacy}'...")
+            if current_broadcast_req['items']:
+                new_privacy = current_broadcast_req['items'][0]['status']['privacyStatus']
+                if new_privacy != target_privacy:
+                    logging.info(f"Privacy status is '{new_privacy}'. Setting to '{target_privacy}'...")
                     youtube_service.liveBroadcasts().update(
-                        part='status',
+                        part='status,snippet',
                         body={
                             'id': broadcast_id,
                             'status': {
-                                'privacyStatus': original_privacy
+                                'privacyStatus': target_privacy
+                            },
+                            'snippet': {
+                                'title': broadcast_title
                             }
                         }
                     ).execute()
-                    logging.info(f"Privacy status restored to '{original_privacy}'.")
+                    logging.info(f"Privacy status updated to '{target_privacy}'.")
             
             logging.info("Broadcast is now 'live'.")
             return True
@@ -322,28 +335,31 @@ def reset_broadcast_connection(youtube_service, broadcast_id):
                 part='status'
             ).execute()
             
-            # Restore original privacy status if it changed
+            # Ensure target privacy status is set
             import time
             time.sleep(1)
-            current_broadcast = youtube_service.liveBroadcasts().list(
+            current_broadcast_req = youtube_service.liveBroadcasts().list(
                 part='status',
                 id=broadcast_id
             ).execute()
             
-            if current_broadcast['items']:
-                new_privacy = current_broadcast['items'][0]['status']['privacyStatus']
-                if new_privacy != original_privacy:
-                    logging.info(f"Privacy status changed to '{new_privacy}'. Restoring to '{original_privacy}'...")
+            if current_broadcast_req['items']:
+                new_privacy = current_broadcast_req['items'][0]['status']['privacyStatus']
+                if new_privacy != target_privacy:
+                    logging.info(f"Privacy status is '{new_privacy}'. Setting to '{target_privacy}'...")
                     youtube_service.liveBroadcasts().update(
-                        part='status',
+                        part='status,snippet',
                         body={
                             'id': broadcast_id,
                             'status': {
-                                'privacyStatus': original_privacy
+                                'privacyStatus': target_privacy
+                            },
+                            'snippet': {
+                                'title': broadcast_title
                             }
                         }
                     ).execute()
-                    logging.info(f"Privacy status restored to '{original_privacy}'.")
+                    logging.info(f"Privacy status updated to '{target_privacy}'.")
             
             logging.info("Broadcast is now 'live'.")
             return True
@@ -400,7 +416,7 @@ def get_obs_stream_status(host, port, password):
         logging.error(f"An unexpected error occurred with OBS WebSocket while getting status: {e}")
         return False
 
-def start_obs_stream(host, port, password, youtube_service=None, channel_id=None, broadcast_id=None):
+def start_obs_stream(host, port, password, youtube_service=None, channel_id=None, broadcast_id=None, force_public=False):
     """
     Connects to OBS via websocket and starts the stream.
     If youtube_service is provided, attempts to reset the broadcast connection first.
@@ -412,6 +428,7 @@ def start_obs_stream(host, port, password, youtube_service=None, channel_id=None
         youtube_service: Authenticated YouTube API service (optional)
         channel_id: YouTube channel ID (optional)
         broadcast_id: Specific broadcast ID to use (optional, from YOUTUBE_BROADCAST_ID env var)
+        force_public: Whether to force the broadcast to be public after reset (optional)
     """
     try:
         # Step 1: Reset YouTube broadcast if authenticated service is available
@@ -420,7 +437,7 @@ def start_obs_stream(host, port, password, youtube_service=None, channel_id=None
             broadcast = get_active_broadcast(youtube_service, channel_id, broadcast_id)
             if broadcast:
                 broadcast_id_to_reset = broadcast['id']
-                reset_success = reset_broadcast_connection(youtube_service, broadcast_id_to_reset)
+                reset_success = reset_broadcast_connection(youtube_service, broadcast_id_to_reset, force_public=force_public)
                 if reset_success:
                     logging.info("YouTube broadcast connection reset successfully.")
                 else:
