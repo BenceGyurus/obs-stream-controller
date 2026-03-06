@@ -65,8 +65,16 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def broadcast_state(self):
-        for connection in self.active_connections:
-            await connection.send_json(state.model_dump(mode='json'))
+        disconnected = []
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(state.model_dump(mode='json'))
+            except Exception:
+                disconnected.append(connection)
+        
+        for connection in disconnected:
+            if connection in self.active_connections:
+                self.active_connections.remove(connection)
 
 manager = ConnectionManager()
 
@@ -182,82 +190,87 @@ async def stream_watchdog():
     else:
         logging.info("Broadcast reset is DISABLED (YOUTUBE_BROADCAST_RESET=false). OBS will start without resetting YouTube broadcast.")
 
+    logging.info("Stream watchdog task started.")
     while True:
-        if state.live_mode and state.live_mode_end_timestamp and datetime.now(timezone.utc) > state.live_mode_end_timestamp:
-            logging.info(f"Live mode timeout of {state.live_mode_timeout} minutes reached. Disabling live mode.")
-            state.live_mode = False
-            state.live_mode_end_timestamp = None
-            check_now.set() # Trigger a check to immediately apply the new interval
-
-        if state.youtube_enabled:
-            logging.info("Checking stream status...")
-            try:
-                state.youtube_is_live = check_youtube_live_status(YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID)
-                if state.obs_enabled:
-                    state.obs_is_streaming = get_obs_stream_status(OBS_HOST, OBS_PORT, OBS_PASSWORD)
-                    if not state.youtube_is_live:
-                        if state.obs_is_streaming:
-                            logging.warning("YouTube offline, OBS streaming. Zombie stream? Restarting OBS stream.")
-                            stop_obs_stream(OBS_HOST, OBS_PORT, OBS_PASSWORD)
-                            await asyncio.sleep(5)
-                        logging.info("Attempting to start OBS stream.")
-                        # Use the enhanced start function with broadcast reset (if enabled)
-                        start_obs_stream(
-                            OBS_HOST, 
-                            OBS_PORT, 
-                            OBS_PASSWORD,
-                            youtube_service=youtube_service if YOUTUBE_BROADCAST_RESET else None,
-                            channel_id=YOUTUBE_CHANNEL_ID if (youtube_service and YOUTUBE_BROADCAST_RESET) else None,
-                            broadcast_id=YOUTUBE_BROADCAST_ID if YOUTUBE_BROADCAST_RESET else None,
-                            force_public=YOUTUBE_FORCE_PUBLIC_ON_RESET
-                        )
-                        await asyncio.sleep(2)
-                        state.obs_is_streaming = get_obs_stream_status(OBS_HOST, OBS_PORT, OBS_PASSWORD)
-            except Exception as e:
-                logging.error(f"Error during check: {e}")
-
-        if state.telegram_enabled:
-            youtube_went_offline = (
-                state.youtube_enabled
-                and state.telegram_notify_on_youtube_offline
-                and state.last_youtube_is_live is True
-                and state.youtube_is_live is False
-            )
-            obs_went_offline = (
-                state.obs_enabled
-                and state.telegram_notify_on_obs_offline
-                and state.last_obs_is_streaming is True
-                and state.obs_is_streaming is False
-            )
-
-            if youtube_went_offline or obs_went_offline:
-                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-                lines = ["Stream status alert:", f"Time: {timestamp}"]
-                if youtube_went_offline:
-                    lines.append("- YouTube stream is OFFLINE")
-                if obs_went_offline:
-                    lines.append("- OBS stream is OFFLINE")
-                message = "\n".join(lines)
-                ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, message)
-                if not ok:
-                    logging.warning(f"Telegram alert failed ({code}): {detail}")
-
-        state.last_youtube_is_live = state.youtube_is_live
-        state.last_obs_is_streaming = state.obs_is_streaming
-
-        state.last_check_timestamp = datetime.now(timezone.utc)
-        history.append(state.model_dump(mode='json'))
-        await manager.broadcast_state()
-
-        interval = 60 if state.live_mode else state.check_interval
-        logging.info(f"Check complete. Waiting for {interval} seconds.")
-        
         try:
-            await asyncio.wait_for(check_now.wait(), timeout=interval)
-            check_now.clear()
-            logging.info("Change detected or manual check. Triggering immediate check.")
-        except asyncio.TimeoutError:
-            pass
+            if state.live_mode and state.live_mode_end_timestamp and datetime.now(timezone.utc) > state.live_mode_end_timestamp:
+                logging.info(f"Live mode timeout of {state.live_mode_timeout} minutes reached. Disabling live mode.")
+                state.live_mode = False
+                state.live_mode_end_timestamp = None
+                check_now.set() # Trigger a check to immediately apply the new interval
+
+            if state.youtube_enabled:
+                logging.info("Checking stream status...")
+                try:
+                    state.youtube_is_live = check_youtube_live_status(YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID)
+                    if state.obs_enabled:
+                        state.obs_is_streaming = get_obs_stream_status(OBS_HOST, OBS_PORT, OBS_PASSWORD)
+                        if not state.youtube_is_live:
+                            if state.obs_is_streaming:
+                                logging.warning("YouTube offline, OBS streaming. Zombie stream? Restarting OBS stream.")
+                                stop_obs_stream(OBS_HOST, OBS_PORT, OBS_PASSWORD)
+                                await asyncio.sleep(5)
+                            logging.info("Attempting to start OBS stream.")
+                            # Use the enhanced start function with broadcast reset (if enabled)
+                            start_obs_stream(
+                                OBS_HOST, 
+                                OBS_PORT, 
+                                OBS_PASSWORD,
+                                youtube_service=youtube_service if YOUTUBE_BROADCAST_RESET else None,
+                                channel_id=YOUTUBE_CHANNEL_ID if (youtube_service and YOUTUBE_BROADCAST_RESET) else None,
+                                broadcast_id=YOUTUBE_BROADCAST_ID if YOUTUBE_BROADCAST_RESET else None,
+                                force_public=YOUTUBE_FORCE_PUBLIC_ON_RESET
+                            )
+                            await asyncio.sleep(2)
+                            state.obs_is_streaming = get_obs_stream_status(OBS_HOST, OBS_PORT, OBS_PASSWORD)
+                except Exception as e:
+                    logging.error(f"Error during check: {e}")
+
+            if state.telegram_enabled:
+                youtube_went_offline = (
+                    state.youtube_enabled
+                    and state.telegram_notify_on_youtube_offline
+                    and state.last_youtube_is_live is True
+                    and state.youtube_is_live is False
+                )
+                obs_went_offline = (
+                    state.obs_enabled
+                    and state.telegram_notify_on_obs_offline
+                    and state.last_obs_is_streaming is True
+                    and state.obs_is_streaming is False
+                )
+
+                if youtube_went_offline or obs_went_offline:
+                    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                    lines = ["Stream status alert:", f"Time: {timestamp}"]
+                    if youtube_went_offline:
+                        lines.append("- YouTube stream is OFFLINE")
+                    if obs_went_offline:
+                        lines.append("- OBS stream is OFFLINE")
+                    message = "\n".join(lines)
+                    ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, message)
+                    if not ok:
+                        logging.warning(f"Telegram alert failed ({code}): {detail}")
+
+            state.last_youtube_is_live = state.youtube_is_live
+            state.last_obs_is_streaming = state.obs_is_streaming
+
+            state.last_check_timestamp = datetime.now(timezone.utc)
+            history.append(state.model_dump(mode='json'))
+            await manager.broadcast_state()
+
+            interval = 60 if state.live_mode else state.check_interval
+            logging.info(f"Check complete. Waiting for {interval} seconds.")
+            
+            try:
+                await asyncio.wait_for(check_now.wait(), timeout=interval)
+                check_now.clear()
+                logging.info("Change detected or manual check. Triggering immediate check.")
+            except asyncio.TimeoutError:
+                pass
+        except Exception as e:
+            logging.error(f"Unexpected error in stream_watchdog loop: {e}")
+            await asyncio.sleep(10) # Wait a bit before retrying to avoid rapid-fire errors
 
 @app.on_event("startup")
 async def startup_event():
@@ -322,36 +335,32 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not state.youtube_enabled:
                     state.obs_enabled = False
                 changed = True
-            if "telegram_enabled" in data and data["telegram_enabled"] != state.telegram_enabled:
-                state.telegram_enabled = data["telegram_enabled"]
+            if "telegram_enabled" in data:
+                state.telegram_enabled = bool(data["telegram_enabled"])
                 changed = True
                 settings_changed = True
-            if "telegram_bot_token" in data and data["telegram_bot_token"] != state.telegram_bot_token:
-                state.telegram_bot_token = data["telegram_bot_token"]
+            if "telegram_bot_token" in data:
+                state.telegram_bot_token = str(data["telegram_bot_token"])
                 changed = True
                 settings_changed = True
-            if "telegram_chat_id" in data and data["telegram_chat_id"] != state.telegram_chat_id:
-                state.telegram_chat_id = data["telegram_chat_id"]
+            if "telegram_chat_id" in data:
+                state.telegram_chat_id = str(data["telegram_chat_id"])
                 changed = True
                 settings_changed = True
-            if (
-                "telegram_notify_on_youtube_offline" in data
-                and data["telegram_notify_on_youtube_offline"] != state.telegram_notify_on_youtube_offline
-            ):
-                state.telegram_notify_on_youtube_offline = data["telegram_notify_on_youtube_offline"]
+            if "telegram_notify_on_youtube_offline" in data:
+                state.telegram_notify_on_youtube_offline = bool(data["telegram_notify_on_youtube_offline"])
                 changed = True
                 settings_changed = True
-            if (
-                "telegram_notify_on_obs_offline" in data
-                and data["telegram_notify_on_obs_offline"] != state.telegram_notify_on_obs_offline
-            ):
-                state.telegram_notify_on_obs_offline = data["telegram_notify_on_obs_offline"]
+            if "telegram_notify_on_obs_offline" in data:
+                state.telegram_notify_on_obs_offline = bool(data["telegram_notify_on_obs_offline"])
                 changed = True
                 settings_changed = True
             
             if changed:
                 if settings_changed:
                     save_settings()
+                # Broadcast the updated state back immediately to confirm
+                await manager.broadcast_state()
                 check_now.set()
     except WebSocketDisconnect:
         manager.disconnect(websocket)

@@ -37,3 +37,17 @@ body {
 #obs-status.bg-danger {
     color: #fff;
 }
+
+body.ws-disconnected::before {
+    content: "Connection lost. Reconnecting...";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #dc3545;
+    color: white;
+    text-align: center;
+    padding: 5px;
+    z-index: 9999;
+    font-weight: bold;
+}
