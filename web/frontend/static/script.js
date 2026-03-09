@@ -24,44 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let reconnectTimeout;
     let currentLanguage = 'en';
     let translations = {};
-    let statusChart;
     let nextCheckCountdownInterval;
     let liveModeCountdownInterval;
-
-    async function loadLanguage(lang) {
-        try {
-            const response = await fetch(`/locales/${lang}.json`);
-            translations = await response.json();
-            translatePage();
-            currentLanguage = lang;
-            localStorage.setItem('language', lang);
-        } catch (error) {
-            console.error(`Could not load language: ${lang}`, error);
-        }
-    }
-
-    function translatePage() {
-        document.querySelectorAll('[data-translate]').forEach(element => {
-            const key = element.getAttribute('data-translate');
-            if (translations[key]) {
-                if (element.tagName === 'INPUT' && element.placeholder) {
-                     // handled if needed
-                } else {
-                    element.textContent = translations[key];
-                }
-            }
-        });
-        // Update statuses with translations
-        if (youtubeStatusEl && youtubeStatusEl.dataset.status !== undefined) {
-            updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status);
-        }
-        if (obsStatusEl && obsStatusEl.dataset.status !== undefined) {
-            updateStatus(obsStatusEl, obsStatusEl.dataset.status);
-        }
-        
-        // Update intervals and other text elements
-        // The WebSocket data might not be available yet on initial load
-    }
 
     function connectWebSocket() {
         if (ws) ws.close();
@@ -117,7 +81,37 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    connectWebSocket();
+    async function loadLanguage(lang) {
+        try {
+            const response = await fetch(`/locales/${lang}.json`);
+            translations = await response.json();
+            translatePage();
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+        } catch (error) {
+            console.error(`Could not load language: ${lang}`, error);
+        }
+    }
+
+    function translatePage() {
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
+            if (translations[key]) {
+                if (element.tagName === 'INPUT' && element.placeholder) {
+                     // handled if needed
+                } else {
+                    element.textContent = translations[key];
+                }
+            }
+        });
+        // Update statuses with translations
+        if (youtubeStatusEl && youtubeStatusEl.dataset.status !== undefined) {
+            updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status);
+        }
+        if (obsStatusEl && obsStatusEl.dataset.status !== undefined) {
+            updateStatus(obsStatusEl, obsStatusEl.dataset.status);
+        }
+    }
 
     function updateStatus(element, isOnline) {
         element.classList.remove('bg-success', 'bg-danger', 'bg-secondary');
@@ -243,13 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function sendMessage(message) {
         showSavingIndicator();
-        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
     }
 
     function showSavingIndicator() { savingIndicator.classList.add('show'); }
     function hideSavingIndicator() { savingIndicator.classList.remove('show'); }
 
     // --- Initial Load ---
+    connectWebSocket();
     const savedLang = localStorage.getItem('language') || 'en';
     languageSwitcher.value = savedLang;
     loadLanguage(savedLang);
