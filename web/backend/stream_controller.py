@@ -400,21 +400,40 @@ def check_youtube_live_status(api_key, channel_id):
 
 def get_obs_stream_status(host, port, password):
     """Checks if the OBS stream is currently active."""
+    ws = None
     try:
+        logging.debug(f"Attempting to get OBS status from {host}:{port}")
         ws = obsws(host, port, password)
         ws.connect()
+        # logging.info("Successfully connected to OBS WebSocket for status check.")
+        
         status_response = ws.call(obsrequests.GetStreamStatus())
         is_active = False
-        if hasattr(status_response, 'datain') and isinstance(status_response.datain, dict):
-            is_active = status_response.datain.get("outputActive", False)
+        
+        # Check for successful response
+        if status_response and hasattr(status_response, 'status') and status_response.status:
+            if hasattr(status_response, 'datain') and isinstance(status_response.datain, dict):
+                is_active = status_response.datain.get("outputActive", False)
+                # logging.info(f"OBS stream status retrieved: active={is_active}")
+            else:
+                logging.warning(f"OBS GetStreamStatus returned success but missing data: {status_response}")
+        else:
+            logging.error(f"OBS GetStreamStatus call failed. Response: {status_response}")
+            
         ws.disconnect()
         return is_active
-    except exceptions.ConnectionFailure:
-        logging.error("Failed to connect to OBS WebSocket to get status.")
+    except exceptions.ConnectionFailure as e:
+        logging.error(f"Failed to connect to OBS WebSocket to get status. Check if OBS is running and reachable at {host}:{port}. Error: {e}")
         return False
     except Exception as e:
-        logging.error(f"An unexpected error occurred with OBS WebSocket while getting status: {e}")
+        logging.error(f"An unexpected error occurred with OBS WebSocket while getting status: {type(e).__name__}: {e}")
         return False
+    finally:
+        if ws:
+            try:
+                ws.disconnect()
+            except:
+                pass
 
 def start_obs_stream(host, port, password, youtube_service=None, channel_id=None, broadcast_id=None, force_public=False):
     """
