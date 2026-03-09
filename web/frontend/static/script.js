@@ -28,7 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let liveModeCountdownInterval;
 
     function connectWebSocket() {
-        if (ws) ws.close();
+        if (ws) {
+            ws.onclose = null; // Prevent reconnect loop during intentional close
+            ws.close();
+        }
         
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -41,10 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            
+            // Store status in dataset for translation updates
+            youtubeStatusEl.dataset.status = data.youtube_is_live;
+            obsStatusEl.dataset.status = data.obs_is_streaming;
+            
             updateStatus(youtubeStatusEl, data.youtube_is_live);
             updateStatus(obsStatusEl, data.obs_is_streaming);
             
-            // Only update inputs if they are NOT focused by the user
             if (document.activeElement !== checkIntervalInput) checkIntervalInput.value = data.check_interval;
             if (document.activeElement !== liveModeTimeoutInput) liveModeTimeoutInput.value = data.live_mode_timeout;
             
@@ -55,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             telegramEnabledSwitch.checked = data.telegram_enabled;
             
-            // Important: Prevent overwriting Telegram fields while user is typing
             if (document.activeElement !== telegramBotTokenInput) telegramBotTokenInput.value = data.telegram_bot_token || '';
             if (document.activeElement !== telegramChatIdInput) telegramChatIdInput.value = data.telegram_chat_id || '';
             
@@ -97,18 +103,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('[data-translate]').forEach(element => {
             const key = element.getAttribute('data-translate');
             if (translations[key]) {
-                if (element.tagName === 'INPUT' && element.placeholder) {
-                     // handled if needed
-                } else {
-                    element.textContent = translations[key];
-                }
+                element.textContent = translations[key];
             }
         });
-        // Update statuses with translations
-        if (youtubeStatusEl && youtubeStatusEl.dataset.status !== undefined) {
+        
+        if (youtubeStatusEl.dataset.status !== undefined) {
             updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status);
         }
-        if (obsStatusEl && obsStatusEl.dataset.status !== undefined) {
+        if (obsStatusEl.dataset.status !== undefined) {
             updateStatus(obsStatusEl, obsStatusEl.dataset.status);
         }
     }
@@ -127,12 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
             element.classList.add('bg-secondary');
         }
         element.dataset.status = isOnline;
-        element.textContent = translations[statusKey] || statusKey.replace('status_', '').charAt(0).toUpperCase() + statusKey.slice(8);
+        element.textContent = translations[statusKey] || (isOnline === true || isOnline === 'true' ? 'Online' : 'Offline');
     }
 
     function updateEffectiveIntervalDisplay(baseInterval, isLiveMode) {
         const effective = isLiveMode ? 60 : baseInterval;
-        effectiveIntervalEl.textContent = (translations.effective_interval || "Effective: {seconds} seconds").replace('{seconds}', effective);
+        if (translations.effective_interval) {
+            effectiveIntervalEl.textContent = translations.effective_interval.replace('{seconds}', effective);
+        } else {
+            effectiveIntervalEl.textContent = `Effective: ${effective} seconds`;
+        }
     }
 
     function updateNextCheckCountdown(lastCheckTimestamp, baseInterval, isLiveMode) {
@@ -145,9 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
         nextCheckCountdownInterval = setInterval(() => {
             const now = new Date();
             const elapsed = Math.floor((now - lastCheckTime) / 1000);
-            const remaining = effectiveInterval - (elapsed % effectiveInterval);
-            lastCheckEl.textContent = `${formatTimeAgo(lastCheckTime)}`;
-            nextCheckCountdownEl.textContent = `${formatSeconds(remaining)}`;
+            const remaining = Math.max(0, effectiveInterval - (elapsed % effectiveInterval));
+            lastCheckEl.textContent = formatTimeAgo(lastCheckTime);
+            nextCheckCountdownEl.textContent = formatSeconds(remaining);
         }, 1000);
     }
 
@@ -159,7 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
             liveModeCountdownInterval = setInterval(() => {
                 const now = new Date();
                 const remaining = Math.max(0, Math.floor((end - now) / 1000));
-                liveModeCountdownEl.textContent = (translations.live_mode_countdown || "Auto-disable in: {time}").replace('{time}', formatSeconds(remaining));
+                if (translations.live_mode_countdown) {
+                    liveModeCountdownEl.textContent = translations.live_mode_countdown.replace('{time}', formatSeconds(remaining));
+                } else {
+                    liveModeCountdownEl.textContent = `Auto-disable in: ${formatSeconds(remaining)}`;
+                }
                 if (remaining <= 0) clearInterval(liveModeCountdownInterval);
             }, 1000);
         } else {
@@ -180,6 +190,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
 
+    function sendMessage(message) {
+        showSavingIndicator();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(message));
+        }
+    }
+
+    function showSavingIndicator() { savingIndicator.classList.add('show'); }
+    function hideSavingIndicator() { savingIndicator.classList.remove('show'); }
+
+    // Event Listeners
     languageSwitcher.addEventListener('change', (event) => loadLanguage(event.target.value));
     checkIntervalInput.addEventListener('change', (event) => sendMessage({ check_interval: parseInt(event.target.value) }));
     liveModeSwitch.addEventListener('change', (event) => sendMessage({ live_mode: event.target.checked }));
@@ -235,17 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkNowBtn.addEventListener('click', () => fetch('/api/check-now', { method: 'POST' }));
 
-    function sendMessage(message) {
-        showSavingIndicator();
-        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
-    }
-
-    function showSavingIndicator() { savingIndicator.classList.add('show'); }
-    function hideSavingIndicator() { savingIndicator.classList.remove('show'); }
-
-    // --- Initial Load ---
-    connectWebSocket();
+    // Initial Load
     const savedLang = localStorage.getItem('language') || 'en';
     languageSwitcher.value = savedLang;
     loadLanguage(savedLang);
+    connectWebSocket();
 });
