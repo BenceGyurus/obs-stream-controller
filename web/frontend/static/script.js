@@ -26,6 +26,111 @@ document.addEventListener('DOMContentLoaded', () => {
     let translations = {};
     let nextCheckCountdownInterval;
     let liveModeCountdownInterval;
+    let statusChart;
+    let lastProcessedCheckTimestamp = null;
+
+    function initChart() {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        statusChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'YouTube Live',
+                        data: [],
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        stepped: true,
+                        tension: 0
+                    },
+                    {
+                        label: 'OBS Streaming',
+                        data: [],
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        stepped: true,
+                        tension: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        display: true,
+                        title: { display: false },
+                        ticks: {
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 10
+                        }
+                    },
+                    y: {
+                        min: -0.1,
+                        max: 1.1,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                if (value === 1) return translations.status_online || 'Online';
+                                if (value === 0) return translations.status_offline || 'Offline';
+                                return '';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                label += context.parsed.y === 1 ? (translations.status_online || 'Online') : (translations.status_offline || 'Offline');
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    async function fetchHistory() {
+        try {
+            const response = await fetch('/api/history');
+            const data = await response.json();
+            updateChartData(data);
+        } catch (error) {
+            console.error('Error fetching history:', error);
+        }
+    }
+
+    function updateChartData(historyEntries) {
+        if (!statusChart) return;
+
+        const labels = historyEntries.map(entry => {
+            const date = new Date(entry.last_check_timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+        const youtubeData = historyEntries.map(entry => entry.youtube_is_live ? 1 : 0);
+        const obsData = historyEntries.map(entry => entry.obs_is_streaming ? 1 : 0);
+
+        statusChart.data.labels = labels;
+        statusChart.data.datasets[0].data = youtubeData;
+        statusChart.data.datasets[1].data = obsData;
+        
+        statusChart.data.datasets[0].label = translations.youtube_live_label || 'YouTube Live';
+        statusChart.data.datasets[1].label = translations.obs_streaming_label || 'OBS Streaming';
+
+        statusChart.update();
+    }
 
     function connectWebSocket() {
         if (ws) {
@@ -45,6 +150,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
+            // Update chart if new check completed
+            if (data.last_check_timestamp && data.last_check_timestamp !== lastProcessedCheckTimestamp) {
+                lastProcessedCheckTimestamp = data.last_check_timestamp;
+                fetchHistory();
+            }
+
             // Store status in dataset for translation updates
             youtubeStatusEl.dataset.status = data.youtube_is_live;
             obsStatusEl.dataset.status = data.obs_is_streaming;
@@ -112,6 +223,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (obsStatusEl.dataset.status !== undefined) {
             updateStatus(obsStatusEl, obsStatusEl.dataset.status);
+        }
+        
+        if (statusChart) {
+            statusChart.data.datasets[0].label = translations.youtube_live_label || 'YouTube Live';
+            statusChart.data.datasets[1].label = translations.obs_streaming_label || 'OBS Streaming';
+            statusChart.update();
         }
     }
 
@@ -259,6 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Load
     const savedLang = localStorage.getItem('language') || 'en';
     languageSwitcher.value = savedLang;
+    initChart();
     loadLanguage(savedLang);
+    fetchHistory();
     connectWebSocket();
 });
