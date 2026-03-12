@@ -78,6 +78,7 @@ class ConnectionManager:
                 self.active_connections.remove(connection)
 
 manager = ConnectionManager()
+app = FastAPI()
 
 def send_telegram_message(bot_token: str, chat_id: str, text: str) -> tuple[bool, str, str]:
     if not bot_token or not chat_id:
