@@ -27,7 +27,7 @@ from .stream_controller import (
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
 
-app = FastAPI()
+load_dotenv()
 
 class StreamState(BaseModel):
     youtube_is_live: bool = False
@@ -39,13 +39,14 @@ class StreamState(BaseModel):
     obs_enabled: bool = True
     youtube_enabled: bool = True
     last_check_timestamp: Union[datetime, None] = None
-    telegram_enabled: bool = False
-    telegram_bot_token: str = ""
-    telegram_chat_id: str = ""
-    telegram_notify_on_youtube_offline: bool = True
-    telegram_notify_on_obs_offline: bool = True
+    telegram_enabled: bool = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
+    telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
+    telegram_notify_on_youtube_offline: bool = os.getenv("TELEGRAM_NOTIFY_ON_YOUTUBE_OFFLINE", "true").lower() == "true"
+    telegram_notify_on_obs_offline: bool = os.getenv("TELEGRAM_NOTIFY_ON_OBS_OFFLINE", "true").lower() == "true"
     last_youtube_is_live: Union[bool, None] = None
     last_obs_is_streaming: Union[bool, None] = None
+
 
 state = StreamState()
 check_now = asyncio.Event()
@@ -154,7 +155,6 @@ def save_settings() -> None:
         logging.warning(f"Failed to save settings to {SETTINGS_FILE}: {e}")
 
 async def stream_watchdog():
-    load_dotenv()
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "").strip("'\"")
     YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID", "").strip("'\"")
     YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "client_secret.json").strip("'\"")
