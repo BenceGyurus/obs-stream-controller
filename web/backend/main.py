@@ -19,7 +19,12 @@ import uvicorn
 
 from .stream_controller import check_youtube_live_status
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
+# Configure logging to be very verbose for debugging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s', 
+    stream=sys.stdout
+)
 
 load_dotenv()
 
@@ -51,35 +56,38 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        logging.info(f"New WebSocket connection. Total: {len(self.active_connections)}")
         await self.broadcast_state()
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+            logging.info(f"WebSocket disconnected. Remaining: {len(self.active_connections)}")
 
     async def broadcast_state(self):
+        data = state.model_dump(mode='json')
         disconnected = []
         for connection in list(self.active_connections):
             try:
-                await connection.send_json(state.model_dump(mode='json'))
+                await connection.send_json(data)
             except Exception:
                 disconnected.append(connection)
         
         for connection in disconnected:
-            if connection in self.active_connections:
-                self.active_connections.remove(connection)
+            self.disconnect(connection)
 
 manager = ConnectionManager()
 app = FastAPI()
 
 def send_telegram_message(bot_token: str, chat_id: str, text: str) -> tuple[bool, str, str]:
-    # Ensure inputs are clean
     bot_token = bot_token.strip().strip("'\"")
     chat_id = chat_id.strip().strip("'\"")
     
     if not bot_token or not chat_id:
-        logging.warning("Telegram notification skipped: bot token or chat id missing.")
-        return False, "missing_credentials", "Telegram bot token or chat id missing."
+        logging.warning(f"Telegram skipped: token={bool(bot_token)}, chat_id={bool(chat_id)}")
+        return False, "missing_credentials", "Bot token or chat id missing."
+    
+    logging.info(f"Attempting Telegram send to Chat ID: {chat_id}")
     
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -89,78 +97,44 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> tuple[bool
         
         with urllib.request.urlopen(req, timeout=15) as response:
             body = response.read().decode("utf-8")
-            data = None
-            try:
-                data = json.loads(body) if body else None
-            except json.JSONDecodeError:
-                data = None
-            if response.status != 200:
-                description = data.get("description") if isinstance(data, dict) else None
-                return False, "send_failed", description or f"Telegram API responded with status {response.status}."
-            if isinstance(data, dict) and not data.get("ok", True):
-                description = data.get("description") or "Telegram API returned ok=false."
-                return False, "send_failed", description
-        return True, "sent", ""
-    except urllib.error.HTTPError as e:
-        body = None
-        try:
-            body = e.read().decode("utf-8")
-        except Exception:
-            body = None
-        description = None
-        if body:
-            try:
-                data = json.loads(body)
-                description = data.get("description") if isinstance(data, dict) else None
-            except json.JSONDecodeError:
-                description = None
-        logging.error(f"Telegram HTTP Error: {description or str(e)}")
-        return False, "send_failed", description or str(e)
+            data = json.loads(body)
+            if response.status == 200 and data.get("ok"):
+                logging.info(f"Telegram message sent successfully to {chat_id}")
+                return True, "sent", ""
+            else:
+                desc = data.get("description", "Unknown error")
+                logging.error(f"Telegram API error: {desc}")
+                return False, "send_failed", desc
     except Exception as e:
-        logging.warning(f"Failed to send Telegram message: {e}")
+        logging.error(f"Failed to send Telegram message: {e}")
         return False, "send_failed", str(e)
 
 def load_settings() -> None:
-    # Always prioritize ENV if they are set (not empty)
-    env_api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
-    if env_api_key: state.youtube_api_key = env_api_key
-    
-    env_channel_id = os.getenv("YOUTUBE_CHANNEL_ID", "").strip()
-    if env_channel_id: state.youtube_channel_id = env_channel_id
-    
-    env_tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    if env_tg_token: state.telegram_bot_token = env_tg_token
-    
-    env_tg_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    if env_tg_chat_id: state.telegram_chat_id = env_tg_chat_id
+    # 1. Start with defaults/ENV
+    state.youtube_api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    state.youtube_channel_id = os.getenv("YOUTUBE_CHANNEL_ID", "").strip()
+    state.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    state.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
-    if not SETTINGS_FILE.exists():
-        return
-    try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-        
-        # Only load from settings if NOT set in ENV or if ENV was empty
-        if not env_api_key:
-            state.youtube_api_key = str(data.get("youtube_api_key", state.youtube_api_key) or "").strip()
-        
-        if not env_channel_id:
-            state.youtube_channel_id = str(data.get("youtube_channel_id", state.youtube_channel_id) or "").strip()
+    # 2. Layer settings.json if it exists
+    if SETTINGS_FILE.exists():
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as h:
+                data = json.load(h)
             
-        if not env_tg_token:
-            state.telegram_bot_token = str(data.get("telegram_bot_token", state.telegram_bot_token) or "").strip()
+            # Use JSON values if they are NOT empty, allowing UI overrides to persist
+            if data.get("youtube_api_key"): state.youtube_api_key = data["youtube_api_key"]
+            if data.get("youtube_channel_id"): state.youtube_channel_id = data["youtube_channel_id"]
+            if data.get("telegram_bot_token"): state.telegram_bot_token = data["telegram_bot_token"]
+            if data.get("telegram_chat_id"): state.telegram_chat_id = data["telegram_chat_id"]
             
-        if not env_tg_chat_id:
-            state.telegram_chat_id = str(data.get("telegram_chat_id", state.telegram_chat_id) or "").strip()
-        
-        state.telegram_enabled = bool(data.get("telegram_enabled", state.telegram_enabled))
-        state.telegram_notify_on_status_change = bool(
-            data.get("telegram_notify_on_status_change", state.telegram_notify_on_status_change)
-        )
-        state.check_interval = int(data.get("check_interval", state.check_interval))
-        logging.info(f"Loaded settings from {SETTINGS_FILE}. Telegram Chat ID: {state.telegram_chat_id}")
-    except Exception as e:
-        logging.warning(f"Failed to load settings from {SETTINGS_FILE}: {e}")
+            state.telegram_enabled = bool(data.get("telegram_enabled", state.telegram_enabled))
+            state.telegram_notify_on_status_change = bool(data.get("telegram_notify_on_status_change", True))
+            state.check_interval = int(data.get("check_interval", 900))
+            
+            logging.info(f"Settings loaded. Chat ID: {state.telegram_chat_id}")
+        except Exception as e:
+            logging.error(f"Load settings failed: {e}")
 
 def save_settings() -> None:
     try:
@@ -174,99 +148,67 @@ def save_settings() -> None:
             "telegram_notify_on_status_change": state.telegram_notify_on_status_change,
             "check_interval": state.check_interval,
         }
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2, sort_keys=True)
-        logging.info(f"Saved settings to {SETTINGS_FILE}.")
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as h:
+            json.dump(data, h, indent=2)
+        logging.info("Settings saved to disk.")
     except Exception as e:
-        logging.warning(f"Failed to save settings to {SETTINGS_FILE}: {e}")
+        logging.error(f"Save settings failed: {e}")
 
 async def stream_watchdog():
-    logging.info("Stream watchdog task started.")
+    logging.info("Watchdog starting...")
     while True:
         try:
             if state.youtube_api_key and state.youtube_channel_id:
-                logging.info(f"Checking stream status for channel {state.youtube_channel_id}...")
-                current_live_status = check_youtube_live_status(state.youtube_api_key, state.youtube_channel_id)
-                state.youtube_is_live = current_live_status
-
+                logging.info(f"Checking YouTube: {state.youtube_channel_id}")
+                is_live = check_youtube_live_status(state.youtube_api_key, state.youtube_channel_id)
+                
+                # IMPORTANT: Status change logic
                 if state.telegram_enabled and state.telegram_notify_on_status_change:
-                    # Status changed from Online to Offline
-                    if state.last_youtube_is_live is True and state.youtube_is_live is False:
-                        message = (
-                            "🚨 <b>HIBA AZ ÉLŐ ADÁSBAN!</b>\n\n"
-                            "A YouTube élő adás jelenleg <b>OFFLINE</b> állapotban van! 😱\n"
-                            "Valami gáz van, nézz rá minél előbb! 🏃‍♂️💨\n\n"
-                            f"⏰ Időpont: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
-                        )
-                        logging.info(f"Sending OFFLINE alert to {state.telegram_chat_id}...")
-                        ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, message)
-                        if not ok:
-                            logging.warning(f"Telegram alert failed ({code}): {detail}")
-                    
-                    # Status changed from Offline to Online
-                    elif state.last_youtube_is_live is False and state.youtube_is_live is True:
-                        message = (
-                            "✅ <b>ÚJRA ÉLŐBEN!</b>\n\n"
-                            "A YouTube élő adás újra <b>ONLINE</b>! 🎉\n"
-                            "Minden a legnagyobb rendben, mehet a show! 🎤🎸\n\n"
-                            f"⏰ Időpont: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
-                        )
-                        logging.info(f"Sending ONLINE alert to {state.telegram_chat_id}...")
-                        ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, message)
-                        if not ok:
-                            logging.warning(f"Telegram alert failed ({code}): {detail}")
+                    if state.last_youtube_is_live is True and is_live is False:
+                        msg = "🚨 <b>HIBA!</b> A YouTube adás megállt! 😱"
+                        send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, msg)
+                    elif state.last_youtube_is_live is False and is_live is True:
+                        msg = "✅ <b>RENDBEN!</b> Az adás újra élőben! 🎉"
+                        send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, msg)
+                
+                state.youtube_is_live = is_live
+                state.last_youtube_is_live = is_live
             else:
-                logging.warning("YouTube API Key or Channel ID missing. Skipping check.")
+                logging.warning("YouTube check skipped: Missing credentials.")
 
-            state.last_youtube_is_live = state.youtube_is_live
             state.last_check_timestamp = datetime.now(timezone.utc)
             history.append(state.model_dump(mode='json'))
             await manager.broadcast_state()
 
-            interval = state.check_interval
-            logging.info(f"Check complete (Result: {'LIVE' if state.youtube_is_live else 'OFFLINE'}). Waiting for {interval} seconds.")
-            
             try:
-                await asyncio.wait_for(check_now.wait(), timeout=interval)
+                await asyncio.wait_for(check_now.wait(), timeout=state.check_interval)
                 check_now.clear()
-                logging.info("Manual check triggered. Running immediate check.")
+                logging.info("Triggered immediate check.")
             except asyncio.TimeoutError:
                 pass
         except Exception as e:
-            logging.error(f"Unexpected error in stream_watchdog loop: {e}")
+            logging.error(f"Watchdog error: {e}")
             await asyncio.sleep(10)
 
 @app.on_event("startup")
-async def startup_event():
+async def startup():
     load_settings()
     asyncio.create_task(stream_watchdog())
 
-@app.post("/api/check-now", status_code=202)
-async def trigger_check_now():
+@app.post("/api/check-now")
+async def api_check_now():
     check_now.set()
-    return {"message": "Check triggered"}
+    return {"status": "triggered"}
 
 @app.get("/api/history")
-async def get_history():
+async def api_history():
     return list(history)
 
 @app.post("/api/telegram-test")
-async def telegram_test():
-    if not state.telegram_enabled:
-        return {"ok": False, "code": "disabled", "detail": "Telegram alerts are disabled"}
-    if not state.telegram_bot_token or not state.telegram_chat_id:
-        return {"ok": False, "code": "missing_credentials", "detail": "Telegram bot token or chat id missing"}
-    
-    message = (
-        "🔔 <b>TESZT ÜZENET</b>\n\n"
-        "Ez egy teszt üzenet a Stream Monitor rendszertől.\n"
-        "A Telegram értesítések megfelelően működnek! 👍\n"
-        f"Chat ID: {state.telegram_chat_id}\n\n"
-        f"⏰ Időpont: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
-    )
-    logging.info(f"Testing Telegram with Chat ID: {state.telegram_chat_id}")
-    ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, message)
-    return {"ok": ok, "code": code, "detail": detail}
+async def api_test_tg():
+    msg = f"🔔 <b>TESZT</b>\nChat ID: {state.telegram_chat_id}\nIdő: {datetime.now().strftime('%H:%M:%S')}"
+    ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, msg)
+    return {"ok": ok, "detail": detail}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -274,60 +216,31 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
+            # Update state from UI
+            fields = ["youtube_api_key", "youtube_channel_id", "telegram_bot_token", 
+                      "telegram_chat_id", "telegram_enabled", "telegram_notify_on_status_change", "check_interval"]
             changed = False
-            settings_changed = False
-            
-            if "youtube_api_key" in data:
-                state.youtube_api_key = str(data["youtube_api_key"]).strip()
-                changed = True
-                settings_changed = True
-            
-            if "youtube_channel_id" in data:
-                state.youtube_channel_id = str(data["youtube_channel_id"]).strip()
-                changed = True
-                settings_changed = True
-            
-            if "check_interval" in data and data["check_interval"] != state.check_interval:
-                state.check_interval = int(data["check_interval"])
-                changed = True
-                settings_changed = True
-            
-            if "telegram_enabled" in data:
-                state.telegram_enabled = bool(data["telegram_enabled"])
-                changed = True
-                settings_changed = True
-                
-            if "telegram_bot_token" in data:
-                state.telegram_bot_token = str(data["telegram_bot_token"]).strip()
-                changed = True
-                settings_changed = True
-                
-            if "telegram_chat_id" in data:
-                state.telegram_chat_id = str(data["telegram_chat_id"]).strip()
-                logging.info(f"Updating Telegram Chat ID from UI to: {state.telegram_chat_id}")
-                changed = True
-                settings_changed = True
-                
-            if "telegram_notify_on_status_change" in data:
-                state.telegram_notify_on_status_change = bool(data["telegram_notify_on_status_change"])
-                changed = True
-                settings_changed = True
+            for f in fields:
+                if f in data:
+                    val = data[f]
+                    if isinstance(val, str): val = val.strip()
+                    setattr(state, f, val)
+                    changed = True
             
             if changed:
-                if settings_changed:
-                    save_settings()
+                save_settings()
                 await manager.broadcast_state()
-                # If credentials changed, trigger a check to verify
-                check_now.set()
-    except WebSocketDisconnect:
+                if any(k in data for k in ["youtube_api_key", "youtube_channel_id"]):
+                    check_now.set()
+    except Exception:
         manager.disconnect(websocket)
 
 app.mount("/static", StaticFiles(directory="web/frontend/static"), name="static")
 app.mount("/locales", StaticFiles(directory="web/frontend/locales"), name="locales")
 
 @app.get("/")
-async def read_index():
+async def index():
     return FileResponse('web/frontend/index.html')
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["web/backend"])
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
