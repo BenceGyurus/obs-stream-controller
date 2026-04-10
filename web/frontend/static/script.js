@@ -13,11 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const telegramBotTokenInput = document.getElementById('telegram-bot-token');
     const telegramChatIdInput = document.getElementById('telegram-chat-id');
     const telegramNotifyStatusSwitch = document.getElementById('telegram-notify-status');
+    const tgNotifyLabel = document.getElementById('tg-notify-label');
     const telegramTestBtn = document.getElementById('telegram-test-btn');
 
     let ws;
     let reconnectTimeout;
-    let currentLanguage = 'en';
+    let currentLanguage = 'hu';
     let translations = {};
     let nextCheckCountdownInterval;
     let statusChart;
@@ -74,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         displayColors: false,
                         callbacks: {
                             label: function(context) {
-                                return context.parsed.y === 1 ? (translations.status_online || 'LIVE') : (translations.status_offline || 'OFFLINE');
+                                return context.parsed.y === 1 ? 'LIVE' : 'OFFLINE';
                             }
                         }
                     }
@@ -143,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.activeElement !== telegramChatIdInput) telegramChatIdInput.value = data.telegram_chat_id || '';
             
             telegramNotifyStatusSwitch.checked = data.telegram_notify_on_status_change;
+            updateSwitchLabel(telegramNotifyStatusSwitch.checked);
 
             updateNextCheckCountdown(data.last_check_timestamp, data.check_interval);
             
@@ -181,9 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Re-run status UI update to use translated strings
-        const currentStatus = statusBadge.classList.contains('status-online');
-        updateStatusUI(currentStatus);
+        updateStatusUI(statusBadge.dataset.status === 'true');
+        updateSwitchLabel(telegramNotifyStatusSwitch.checked);
     }
 
     function updateStatusUI(isOnline) {
@@ -194,6 +195,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             statusBadge.classList.add('status-offline');
             youtubeStatusEl.textContent = translations.status_offline || 'OFFLINE';
+        }
+        statusBadge.dataset.status = isOnline;
+    }
+
+    function updateSwitchLabel(isChecked) {
+        if (!tgNotifyLabel) return;
+        if (isChecked) {
+            tgNotifyLabel.textContent = translations.status_active || 'Aktív';
+            tgNotifyLabel.classList.add('status-label-active');
+        } else {
+            tgNotifyLabel.textContent = translations.status_disabled || 'Kikapcsolva';
+            tgNotifyLabel.classList.remove('status-label-active');
         }
     }
 
@@ -265,7 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
     telegramEnabledSwitch.addEventListener('change', (event) => sendMessage({ telegram_enabled: event.target.checked }));
     telegramBotTokenInput.addEventListener('input', debouncedSend('telegram_bot_token'));
     telegramChatIdInput.addEventListener('input', debouncedSend('telegram_chat_id'));
-    telegramNotifyStatusSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_status_change: event.target.checked }));
+    
+    telegramNotifyStatusSwitch.addEventListener('change', (event) => {
+        updateSwitchLabel(event.target.checked);
+        sendMessage({ telegram_notify_on_status_change: event.target.checked });
+    });
 
     telegramTestBtn.addEventListener('click', async () => {
         telegramTestBtn.disabled = true;
@@ -287,18 +304,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function buildTelegramErrorMessage(result) {
-        if (!result || !result.code) return translations.telegram_test_failed || 'Telegram test failed';
+        if (!result) return 'Error';
         const detail = result.detail ? ` (${result.detail})` : '';
-        switch (result.code) {
-            case 'disabled':
-                return (translations.telegram_error_disabled || 'Telegram alerts are disabled') + detail;
-            case 'missing_credentials':
-                return (translations.telegram_error_missing || 'Telegram bot token or chat id missing') + detail;
-            case 'send_failed':
-                return (translations.telegram_error_send || 'Telegram API error') + detail;
-            default:
-                return (translations.telegram_test_failed || 'Telegram test failed') + detail;
-        }
+        return (translations.telegram_test_failed || 'Telegram test failed') + detail;
     }
 
     checkNowBtn.addEventListener('click', () => {

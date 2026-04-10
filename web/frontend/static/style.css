@@ -29,7 +29,6 @@ body {
     padding: 2rem;
 }
 
-/* Glass Card Style */
 .glass-card {
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
@@ -43,10 +42,8 @@ body {
 
 .glass-card:hover {
     border-color: rgba(255, 255, 255, 0.15);
-    transform: translateY(-4px);
 }
 
-/* Status Hero Section */
 .status-hero {
     text-align: center;
     padding: 3rem 1rem;
@@ -92,19 +89,16 @@ body {
     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
 }
 
-/* Typography */
 h1 { font-weight: 800; letter-spacing: -1px; margin: 0; }
 .text-dim { color: var(--text-dim); }
 .label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 0.5rem; }
 
-/* Grid Layout */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
 }
 
-/* Inputs */
 input {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid var(--glass-border) !important;
@@ -129,45 +123,43 @@ input:focus {
     transition: all 0.2s;
 }
 
-.btn-primary:hover {
-    background: #0066d6;
-    transform: scale(1.02);
-}
-
 .btn-outline-info {
     border: 1px solid var(--glass-border);
     color: white;
     border-radius: 12px;
 }
 
-.btn-outline-info:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: white;
+/* --- PREMIUM SWITCH STYLE --- */
+.form-check-switch {
+    padding-left: 3.5em;
+    min-height: 1.5rem;
 }
 
-/* Custom Chart Style */
-.chart-container {
-    padding-top: 1rem;
-}
-
-/* Toggle Switch */
-.form-check-input {
+.form-check-switch .form-check-input {
     width: 3em !important;
-    height: 1.5em !important;
+    height: 1.6em !important;
+    margin-left: -3.5em;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,255,255,0.3)'/%3e%3c/svg%3e");
     background-color: rgba(255, 255, 255, 0.1);
-    border: none;
-    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2em;
+    transition: background-position 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-.form-check-input:checked {
+.form-check-switch .form-check-input:checked {
+    background-position: right center;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
     background-color: var(--accent-green);
+    border-color: var(--accent-green);
 }
 
-/* Animations */
-.fade-in {
-    animation: fadeIn 0.8s ease-out forwards;
+.status-label-active {
+    color: var(--accent-green) !important;
+    font-weight: 700;
 }
 
+/* --- ANIMATIONS --- */
+.fade-in { animation: fadeIn 0.8s ease-out forwards; }
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -186,7 +178,7 @@ input:focus {
 }
 
 body.ws-disconnected::before {
-    content: "⚠️ SYSTEM OFFLINE - CHECK SERVER LOGS (websockets library missing?)";
+    content: "⚠️ KAPCSOLATI HIBA - SZERVER LOGOK?";
     position: fixed;
     top: 0;
     left: 0;
@@ -197,6 +189,4 @@ body.ws-disconnected::before {
     padding: 12px;
     z-index: 9999;
     font-weight: 800;
-    font-size: 0.9rem;
-    letter-spacing: 1px;
 }
