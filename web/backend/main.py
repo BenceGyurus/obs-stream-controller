@@ -19,7 +19,6 @@ import uvicorn
 
 from .stream_controller import check_youtube_live_status
 
-# Configure logging to be very verbose for debugging
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s', 
@@ -33,13 +32,13 @@ class StreamState(BaseModel):
     check_interval: int = 900
     last_check_timestamp: Union[datetime, None] = None
     
-    youtube_api_key: str = os.getenv("YOUTUBE_API_KEY", "")
-    youtube_channel_id: str = os.getenv("YOUTUBE_CHANNEL_ID", "")
+    youtube_api_key: str = ""
+    youtube_channel_id: str = ""
     
-    telegram_enabled: bool = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
-    telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
-    telegram_notify_on_status_change: bool = os.getenv("TELEGRAM_NOTIFY_ON_STATUS_CHANGE", "true").lower() == "true"
+    telegram_enabled: bool = False
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    telegram_notify_on_status_change: bool = True
     
     last_youtube_is_live: Union[bool, None] = None
 
@@ -56,42 +55,32 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logging.info(f"New WebSocket connection. Total: {len(self.active_connections)}")
+        logging.info(f"WebSocket connected. Broadcasting current state.")
         await self.broadcast_state()
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            logging.info(f"WebSocket disconnected. Remaining: {len(self.active_connections)}")
 
     async def broadcast_state(self):
         data = state.model_dump(mode='json')
-        disconnected = []
         for connection in list(self.active_connections):
             try:
                 await connection.send_json(data)
             except Exception:
-                disconnected.append(connection)
-        
-        for connection in disconnected:
-            self.disconnect(connection)
+                if connection in self.active_connections:
+                    self.active_connections.remove(connection)
 
 manager = ConnectionManager()
 app = FastAPI()
 
 def send_telegram_message(bot_token: str, chat_id: str, text: str) -> tuple[bool, str, str]:
-    bot_token = bot_token.strip().strip("'\"")
-    chat_id = chat_id.strip().strip("'\"")
-    
     if not bot_token or not chat_id:
-        logging.warning(f"Telegram skipped: token={bool(bot_token)}, chat_id={bool(chat_id)}")
-        return False, "missing_credentials", "Bot token or chat id missing."
-    
-    logging.info(f"Attempting Telegram send to Chat ID: {chat_id}")
+        return False, "missing_credentials", "Missing token/chat_id"
     
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        params = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+        params = {"chat_id": str(chat_id), "text": text, "parse_mode": "HTML"}
         payload = urllib.parse.urlencode(params).encode("utf-8")
         req = urllib.request.Request(url, data=payload, method="POST")
         
@@ -99,83 +88,68 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> tuple[bool
             body = response.read().decode("utf-8")
             data = json.loads(body)
             if response.status == 200 and data.get("ok"):
-                logging.info(f"Telegram message sent successfully to {chat_id}")
+                logging.info(f"Telegram sent to {chat_id}")
                 return True, "sent", ""
-            else:
-                desc = data.get("description", "Unknown error")
-                logging.error(f"Telegram API error: {desc}")
-                return False, "send_failed", desc
+            return False, "failed", data.get("description", "Unknown error")
     except Exception as e:
-        logging.error(f"Failed to send Telegram message: {e}")
-        return False, "send_failed", str(e)
+        logging.error(f"Telegram error: {e}")
+        return False, "error", str(e)
 
 def load_settings() -> None:
-    # 1. Start with defaults/ENV
+    # 1. Start with ENV as base
     state.youtube_api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
     state.youtube_channel_id = os.getenv("YOUTUBE_CHANNEL_ID", "").strip()
     state.telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     state.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    state.telegram_enabled = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
 
-    # 2. Layer settings.json if it exists
+    # 2. OVERWRITE with settings.json (The "Stickiness" logic)
     if SETTINGS_FILE.exists():
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as h:
-                data = json.load(h)
+                saved = json.load(h)
             
-            # Use JSON values if they are NOT empty, allowing UI overrides to persist
-            if data.get("youtube_api_key"): state.youtube_api_key = data["youtube_api_key"]
-            if data.get("youtube_channel_id"): state.youtube_channel_id = data["youtube_channel_id"]
-            if data.get("telegram_bot_token"): state.telegram_bot_token = data["telegram_bot_token"]
-            if data.get("telegram_chat_id"): state.telegram_chat_id = data["telegram_chat_id"]
+            # If it's in the file, it's the absolute truth.
+            # We use string casting and strip to be safe.
+            if "youtube_api_key" in saved: state.youtube_api_key = str(saved["youtube_api_key"]).strip()
+            if "youtube_channel_id" in saved: state.youtube_channel_id = str(saved["youtube_channel_id"]).strip()
+            if "telegram_bot_token" in saved: state.telegram_bot_token = str(saved["telegram_bot_token"]).strip()
+            if "telegram_chat_id" in saved: state.telegram_chat_id = str(saved["telegram_chat_id"]).strip()
+            if "telegram_enabled" in saved: state.telegram_enabled = bool(saved["telegram_enabled"])
+            if "telegram_notify_on_status_change" in saved: state.telegram_notify_on_status_change = bool(saved["telegram_notify_on_status_change"])
+            if "check_interval" in saved: state.check_interval = int(saved["check_interval"])
             
-            state.telegram_enabled = bool(data.get("telegram_enabled", state.telegram_enabled))
-            state.telegram_notify_on_status_change = bool(data.get("telegram_notify_on_status_change", True))
-            state.check_interval = int(data.get("check_interval", 900))
-            
-            logging.info(f"Settings loaded. Chat ID: {state.telegram_chat_id}")
+            logging.info(f"Settings loaded from disk. Priority Chat ID: {state.telegram_chat_id}")
         except Exception as e:
-            logging.error(f"Load settings failed: {e}")
+            logging.error(f"Failed to load settings.json: {e}")
 
 def save_settings() -> None:
     try:
         SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            "youtube_api_key": state.youtube_api_key,
-            "youtube_channel_id": state.youtube_channel_id,
-            "telegram_enabled": state.telegram_enabled,
-            "telegram_bot_token": state.telegram_bot_token,
-            "telegram_chat_id": state.telegram_chat_id,
-            "telegram_notify_on_status_change": state.telegram_notify_on_status_change,
-            "check_interval": state.check_interval,
-        }
+        data = state.model_dump(exclude={"youtube_is_live", "last_check_timestamp", "last_youtube_is_live"})
         with open(SETTINGS_FILE, "w", encoding="utf-8") as h:
             json.dump(data, h, indent=2)
-        logging.info("Settings saved to disk.")
+        logging.info(f"Settings saved! Current Chat ID: {state.telegram_chat_id}")
     except Exception as e:
-        logging.error(f"Save settings failed: {e}")
+        logging.error(f"Failed to save settings: {e}")
 
 async def stream_watchdog():
-    logging.info("Watchdog starting...")
+    logging.info("YouTube Watchdog active.")
     while True:
         try:
             if state.youtube_api_key and state.youtube_channel_id:
-                logging.info(f"Checking YouTube: {state.youtube_channel_id}")
                 is_live = check_youtube_live_status(state.youtube_api_key, state.youtube_channel_id)
                 
-                # IMPORTANT: Status change logic
+                # Notification logic
                 if state.telegram_enabled and state.telegram_notify_on_status_change:
                     if state.last_youtube_is_live is True and is_live is False:
-                        msg = "🚨 <b>HIBA!</b> A YouTube adás megállt! 😱"
-                        send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, msg)
+                        send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, "🚨 <b>ADÁS MEGÁLLT!</b>")
                     elif state.last_youtube_is_live is False and is_live is True:
-                        msg = "✅ <b>RENDBEN!</b> Az adás újra élőben! 🎉"
-                        send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, msg)
+                        send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, "✅ <b>ADÁS ÚJRA INDULT!</b>")
                 
                 state.youtube_is_live = is_live
                 state.last_youtube_is_live = is_live
-            else:
-                logging.warning("YouTube check skipped: Missing credentials.")
-
+            
             state.last_check_timestamp = datetime.now(timezone.utc)
             history.append(state.model_dump(mode='json'))
             await manager.broadcast_state()
@@ -183,11 +157,10 @@ async def stream_watchdog():
             try:
                 await asyncio.wait_for(check_now.wait(), timeout=state.check_interval)
                 check_now.clear()
-                logging.info("Triggered immediate check.")
             except asyncio.TimeoutError:
                 pass
         except Exception as e:
-            logging.error(f"Watchdog error: {e}")
+            logging.error(f"Watchdog loop error: {e}")
             await asyncio.sleep(10)
 
 @app.on_event("startup")
@@ -196,17 +169,17 @@ async def startup():
     asyncio.create_task(stream_watchdog())
 
 @app.post("/api/check-now")
-async def api_check_now():
+async def api_check():
     check_now.set()
-    return {"status": "triggered"}
+    return {"ok": True}
 
 @app.get("/api/history")
 async def api_history():
     return list(history)
 
 @app.post("/api/telegram-test")
-async def api_test_tg():
-    msg = f"🔔 <b>TESZT</b>\nChat ID: {state.telegram_chat_id}\nIdő: {datetime.now().strftime('%H:%M:%S')}"
+async def api_test():
+    msg = f"🔔 <b>TESZT</b>\nChat: {state.telegram_chat_id}\nID rögzítve! ✅"
     ok, code, detail = send_telegram_message(state.telegram_bot_token, state.telegram_chat_id, msg)
     return {"ok": ok, "detail": detail}
 
@@ -216,15 +189,14 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            # Update state from UI
-            fields = ["youtube_api_key", "youtube_channel_id", "telegram_bot_token", 
-                      "telegram_chat_id", "telegram_enabled", "telegram_notify_on_status_change", "check_interval"]
+            updatable = ["youtube_api_key", "youtube_channel_id", "telegram_bot_token", 
+                        "telegram_chat_id", "telegram_enabled", "telegram_notify_on_status_change", "check_interval"]
             changed = False
-            for f in fields:
-                if f in data:
-                    val = data[f]
+            for key in updatable:
+                if key in data:
+                    val = data[key]
                     if isinstance(val, str): val = val.strip()
-                    setattr(state, f, val)
+                    setattr(state, key, val)
                     changed = True
             
             if changed:
@@ -243,4 +215,4 @@ async def index():
     return FileResponse('web/frontend/index.html')
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
