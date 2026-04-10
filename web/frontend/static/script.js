@@ -30,13 +30,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 labels: [],
                 datasets: [
                     {
-                        label: 'YouTube Live',
+                        label: 'YouTube Live Status',
                         data: [],
-                        borderColor: '#dc3545',
-                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderColor: '#00d1b2',
+                        backgroundColor: 'rgba(0, 209, 178, 0.1)',
                         fill: true,
                         stepped: true,
-                        tension: 0
+                        tension: 0,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 3
                     }
                 ]
             },
@@ -45,40 +48,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAspectRatio: false,
                 scales: {
                     x: {
-                        display: true,
-                        title: { display: false },
-                        ticks: {
-                            maxRotation: 0,
-                            autoSkip: true,
-                            maxTicksLimit: 10
-                        }
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: 'rgba(255, 255, 255, 0.5)', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
                     },
                     y: {
-                        min: -0.1,
-                        max: 1.1,
+                        min: -0.2,
+                        max: 1.2,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
                         ticks: {
+                            color: 'rgba(255, 255, 255, 0.7)',
                             stepSize: 1,
                             callback: function(value) {
-                                if (value === 1) return translations.status_online || 'Online';
-                                if (value === 0) return translations.status_offline || 'Offline';
+                                if (value === 1) return translations.status_online || 'LIVE';
+                                if (value === 0) return translations.status_offline || 'OFFLINE';
                                 return '';
                             }
                         }
                     }
                 },
                 plugins: {
-                    legend: {
-                        position: 'top',
-                    },
+                    legend: { display: false },
                     tooltip: {
                         mode: 'index',
                         intersect: false,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                label += context.parsed.y === 1 ? (translations.status_online || 'Online') : (translations.status_offline || 'Offline');
-                                return label;
+                                return (context.parsed.y === 1 ? (translations.status_online || 'Live') : (translations.status_offline || 'Offline'));
                             }
                         }
                     }
@@ -99,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateChartData(historyEntries) {
         if (!statusChart) return;
+        if (!historyEntries.length) return;
 
         const labels = historyEntries.map(entry => {
             const date = new Date(entry.last_check_timestamp);
@@ -108,8 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         statusChart.data.labels = labels;
         statusChart.data.datasets[0].data = youtubeData;
-        statusChart.data.datasets[0].label = translations.youtube_live_label || 'YouTube Live';
-
         statusChart.update();
     }
 
@@ -188,17 +185,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         if (youtubeStatusEl.dataset.status !== undefined) {
-            updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status);
+            updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status === 'true' || youtubeStatusEl.dataset.status === true);
         }
         
         if (statusChart) {
-            statusChart.data.datasets[0].label = translations.youtube_live_label || 'YouTube Live';
             statusChart.update();
         }
     }
 
     function updateStatus(element, isOnline) {
-        element.classList.remove('bg-success', 'bg-danger', 'bg-secondary');
+        element.classList.remove('bg-success', 'bg-danger', 'bg-warning');
         let statusKey;
         if (isOnline === true || isOnline === 'true') {
             statusKey = 'status_online';
@@ -208,10 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
             element.classList.add('bg-danger');
         } else {
             statusKey = 'status_unknown';
-            element.classList.add('bg-secondary');
+            element.classList.add('bg-warning');
         }
         element.dataset.status = isOnline;
-        element.textContent = translations[statusKey] || (isOnline === true || isOnline === 'true' ? 'Online' : 'Offline');
+        element.textContent = translations[statusKey] || (isOnline === true ? 'Live' : 'Offline');
     }
 
     function updateNextCheckCountdown(lastCheckTimestamp, baseInterval) {
@@ -221,13 +217,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const lastCheckTime = new Date(lastCheckTimestamp);
         const effectiveInterval = baseInterval;
 
-        nextCheckCountdownInterval = setInterval(() => {
+        function refresh() {
             const now = new Date();
             const elapsed = Math.floor((now - lastCheckTime) / 1000);
-            const remaining = Math.max(0, effectiveInterval - (elapsed % effectiveInterval));
+            const remaining = Math.max(0, effectiveInterval - elapsed);
             lastCheckEl.textContent = formatTimeAgo(lastCheckTime);
             nextCheckCountdownEl.textContent = formatSeconds(remaining);
-        }, 1000);
+        }
+        
+        refresh();
+        nextCheckCountdownInterval = setInterval(refresh, 1000);
     }
 
     function formatTimeAgo(date) {
@@ -250,8 +249,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showSavingIndicator() { savingIndicator.classList.add('show'); }
-    function hideSavingIndicator() { savingIndicator.classList.remove('show'); }
+    function showSavingIndicator() { 
+        savingIndicator.classList.add('show'); 
+        savingIndicator.classList.remove('fade');
+    }
+    function hideSavingIndicator() { 
+        setTimeout(() => {
+            savingIndicator.classList.add('fade');
+            savingIndicator.classList.remove('show');
+        }, 500);
+    }
 
     // Event Listeners
     languageSwitcher.addEventListener('change', (event) => loadLanguage(event.target.value));
@@ -299,13 +306,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    checkNowBtn.addEventListener('click', () => fetch('/api/check-now', { method: 'POST' }));
+    checkNowBtn.addEventListener('click', () => {
+        checkNowBtn.disabled = true;
+        fetch('/api/check-now', { method: 'POST' })
+            .finally(() => {
+                setTimeout(() => { checkNowBtn.disabled = false; }, 2000);
+            });
+    });
 
     // Initial Load
-    const savedLang = localStorage.getItem('language') || 'en';
+    const savedLang = localStorage.getItem('language') || 'hu'; // Default to Hungarian as per context
     languageSwitcher.value = savedLang;
     initChart();
-    loadLanguage(savedLang);
-    fetchHistory();
-    connectWebSocket();
+    loadLanguage(savedLang).then(() => {
+        fetchHistory();
+        connectWebSocket();
+    });
 });

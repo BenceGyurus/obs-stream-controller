@@ -11,36 +11,36 @@
 <body class="bg-dark text-light">
     <div class="container py-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 mb-0" data-translate="app_title">Stream Monitor</h1>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <h1 class="h3 mb-0" data-translate="app_title">Stream Monitor</h1>
                 <span id="saving-indicator" class="badge bg-primary fade" data-translate="saving">Saving...</span>
-                <select id="language-switcher" class="form-select form-select-sm bg-secondary text-light border-0">
-                    <option value="en">English</option>
-                    <option value="hu">Magyar</option>
-                </select>
             </div>
+            <select id="language-switcher" class="form-select form-select-sm bg-secondary text-light border-0 w-auto">
+                <option value="en">English</option>
+                <option value="hu">Magyar</option>
+            </select>
         </header>
 
         <div class="row g-4">
             <!-- Status Cards -->
             <div class="col-md-6">
-                <div class="card bg-secondary text-light h-100 border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <h5 class="card-title text-muted mb-3" data-translate="youtube_status">YouTube Status</h5>
-                        <div id="youtube-status" class="display-6 badge rounded-pill bg-secondary" data-translate="status_unknown">Unknown</div>
+                <div class="card bg-secondary text-light h-100 border-0 shadow-lg">
+                    <div class="card-body text-center d-flex flex-column justify-content-center py-4">
+                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-3" data-translate="youtube_status">YouTube Status</h5>
+                        <div id="youtube-status" class="display-4 fw-bold py-2 px-4 rounded-pill d-inline-block mx-auto" data-translate="status_unknown">Unknown</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card bg-secondary text-light h-100 border-0 shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted mb-3" data-translate="last_check">Last Check</h5>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span id="last-check" class="h5 mb-0">--</span>
-                            <button id="check-now-btn" class="btn btn-primary btn-sm" data-translate="check_now">Check Now</button>
+                <div class="card bg-secondary text-light h-100 border-0 shadow-lg">
+                    <div class="card-body py-4">
+                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-3" data-translate="last_check">Last Check</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span id="last-check" class="h4 mb-0 fw-bold">--</span>
+                            <button id="check-now-btn" class="btn btn-primary btn-sm px-3 fw-bold" data-translate="check_now">Check Now</button>
                         </div>
-                        <div class="mt-2 small text-muted">
-                            <span data-translate="next_check">Next check in:</span> <span id="next-check-countdown">--:--</span>
+                        <div class="small opacity-75">
+                            <span data-translate="next_check">Next check in:</span> <span id="next-check-countdown" class="font-monospace fw-bold text-info">--:--</span>
                         </div>
                     </div>
                 </div>
@@ -48,10 +48,10 @@
 
             <!-- History Chart -->
             <div class="col-12">
-                <div class="card bg-secondary text-light border-0 shadow-sm">
+                <div class="card bg-secondary text-light border-0 shadow-lg">
                     <div class="card-body">
-                        <h5 class="card-title text-muted mb-3" data-translate="history">History</h5>
-                        <div class="chart-container" style="position: relative; height:250px;">
+                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-4" data-translate="history">History</h5>
+                        <div class="chart-container" style="position: relative; height:300px;">
                             <canvas id="statusChart"></canvas>
                         </div>
                     </div>
@@ -60,20 +60,21 @@
 
             <!-- YouTube Settings -->
             <div class="col-md-6">
-                <div class="card bg-secondary text-light border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <h5 class="card-title mb-4" data-translate="youtube_settings">YouTube Settings</h5>
+                <div class="card bg-secondary text-light border-0 shadow-lg h-100">
+                    <div class="card-body py-4">
+                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-4" data-translate="youtube_settings">YouTube Settings</h5>
                         <div class="mb-3">
-                            <label for="youtube-api-key" class="form-label" data-translate="api_key">API Key</label>
-                            <input type="password" class="form-control bg-dark text-light border-0" id="youtube-api-key">
+                            <label for="youtube-api-key" class="form-label small fw-bold" data-translate="api_key">API Key</label>
+                            <input type="password" class="form-control bg-dark text-light border-0 py-2" id="youtube-api-key">
+                            <div class="form-text text-light opacity-50 small">Stored in ENV or settings.json</div>
                         </div>
                         <div class="mb-3">
-                            <label for="youtube-channel-id" class="form-label" data-translate="channel_id">Channel ID</label>
-                            <input type="text" class="form-control bg-dark text-light border-0" id="youtube-channel-id">
+                            <label for="youtube-channel-id" class="form-label small fw-bold" data-translate="channel_id">Channel ID</label>
+                            <input type="text" class="form-control bg-dark text-light border-0 py-2" id="youtube-channel-id">
                         </div>
-                        <div class="mb-3">
-                            <label for="check-interval" class="form-label" data-translate="check_interval">Check Interval (seconds)</label>
-                            <input type="number" class="form-control bg-dark text-light border-0" id="check-interval" min="10" step="10">
+                        <div class="mb-0">
+                            <label for="check-interval" class="form-label small fw-bold" data-translate="check_interval">Check Interval (seconds)</label>
+                            <input type="number" class="form-control bg-dark text-light border-0 py-2" id="check-interval" min="10" step="10">
                         </div>
                     </div>
                 </div>
@@ -81,29 +82,29 @@
 
             <!-- Telegram Settings -->
             <div class="col-md-6">
-                <div class="card bg-secondary text-light border-0 shadow-sm h-100">
-                    <div class="card-body">
+                <div class="card bg-secondary text-light border-0 shadow-lg h-100">
+                    <div class="card-body py-4">
                         <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="card-title mb-0" data-translate="telegram_alerts">Telegram Alerts</h5>
+                            <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-0" data-translate="telegram_alerts">Telegram Alerts</h5>
                             <div class="form-check form-switch">
-                                <input class="form-check-switch form-check-input" type="checkbox" id="telegram-enabled">
+                                <input class="form-check-input" type="checkbox" id="telegram-enabled">
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="telegram-bot-token" class="form-label" data-translate="bot_token">Bot Token</label>
-                            <input type="password" class="form-control bg-dark text-light border-0" id="telegram-bot-token">
+                            <label for="telegram-bot-token" class="form-label small fw-bold" data-translate="bot_token">Bot Token</label>
+                            <input type="password" class="form-control bg-dark text-light border-0 py-2" id="telegram-bot-token">
                         </div>
                         <div class="mb-3">
-                            <label for="telegram-chat-id" class="form-label" data-translate="chat_id">Chat ID</label>
-                            <input type="text" class="form-control bg-dark text-light border-0" id="telegram-chat-id">
+                            <label for="telegram-chat-id" class="form-label small fw-bold" data-translate="chat_id">Chat ID</label>
+                            <input type="text" class="form-control bg-dark text-light border-0 py-2" id="telegram-chat-id">
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <div class="form-check form-switch mb-0">
                                 <input class="form-check-input" type="checkbox" id="telegram-notify-status">
-                                <label class="form-check-label" for="telegram-notify-status" data-translate="notify_status_change">Notify on status change</label>
+                                <label class="form-check-label small" for="telegram-notify-status" data-translate="notify_status_change">Notify on status change</label>
                             </div>
+                            <button id="telegram-test-btn" class="btn btn-outline-info btn-sm px-3 fw-bold" data-translate="send_test">Test</button>
                         </div>
-                        <button id="telegram-test-btn" class="btn btn-outline-info btn-sm w-100" data-translate="send_test">Send Test Message</button>
                     </div>
                 </div>
             </div>
