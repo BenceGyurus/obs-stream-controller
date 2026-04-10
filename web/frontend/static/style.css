@@ -23,18 +23,15 @@ body {
     opacity: 1;
 }
 
-#youtube-status.bg-secondary,
-#obs-status.bg-secondary {
+#youtube-status.bg-secondary {
     color: #fff;
 }
 
-#youtube-status.bg-success,
-#obs-status.bg-success {
+#youtube-status.bg-success {
     color: #fff;
 }
 
-#youtube-status.bg-danger,
-#obs-status.bg-danger {
+#youtube-status.bg-danger {
     color: #fff;
 }
 

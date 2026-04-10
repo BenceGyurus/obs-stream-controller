@@ -1,13 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     const youtubeStatusEl = document.getElementById('youtube-status');
-    const obsStatusEl = document.getElementById('obs-status');
+    const youtubeApiKeyInput = document.getElementById('youtube-api-key');
+    const youtubeChannelIdInput = document.getElementById('youtube-channel-id');
     const checkIntervalInput = document.getElementById('check-interval');
-    const effectiveIntervalEl = document.getElementById('effective-interval');
-    const liveModeSwitch = document.getElementById('live-mode');
-    const liveModeTimeoutInput = document.getElementById('live-mode-timeout');
-    const liveModeCountdownEl = document.getElementById('live-mode-countdown');
-    const obsEnabledSwitch = document.getElementById('obs-enabled');
-    const youtubeEnabledSwitch = document.getElementById('youtube-enabled');
     const savingIndicator = document.getElementById('saving-indicator');
     const languageSwitcher = document.getElementById('language-switcher');
     const lastCheckEl = document.getElementById('last-check');
@@ -16,8 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const telegramEnabledSwitch = document.getElementById('telegram-enabled');
     const telegramBotTokenInput = document.getElementById('telegram-bot-token');
     const telegramChatIdInput = document.getElementById('telegram-chat-id');
-    const telegramNotifyYoutubeSwitch = document.getElementById('telegram-notify-youtube');
-    const telegramNotifyObsSwitch = document.getElementById('telegram-notify-obs');
+    const telegramNotifyStatusSwitch = document.getElementById('telegram-notify-status');
     const telegramTestBtn = document.getElementById('telegram-test-btn');
 
     let ws;
@@ -25,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentLanguage = 'en';
     let translations = {};
     let nextCheckCountdownInterval;
-    let liveModeCountdownInterval;
     let statusChart;
     let lastProcessedCheckTimestamp = null;
 
@@ -44,20 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         fill: true,
                         stepped: true,
                         tension: 0
-                    },
-                    {
-                        label: 'OBS Streaming',
-                        data: [],
-                        borderColor: '#0d6efd',
-                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                        fill: true,
-                        stepped: true,
-                        tension: 0
                     }
                 ]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     x: {
                         display: true,
@@ -120,21 +105,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         });
         const youtubeData = historyEntries.map(entry => entry.youtube_is_live ? 1 : 0);
-        const obsData = historyEntries.map(entry => entry.obs_is_streaming ? 1 : 0);
 
         statusChart.data.labels = labels;
         statusChart.data.datasets[0].data = youtubeData;
-        statusChart.data.datasets[1].data = obsData;
-        
         statusChart.data.datasets[0].label = translations.youtube_live_label || 'YouTube Live';
-        statusChart.data.datasets[1].label = translations.obs_streaming_label || 'OBS Streaming';
 
         statusChart.update();
     }
 
     function connectWebSocket() {
         if (ws) {
-            ws.onclose = null; // Prevent reconnect loop during intentional close
+            ws.onclose = null;
             ws.close();
         }
         
@@ -150,38 +131,26 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
-            // Update chart if new check completed
             if (data.last_check_timestamp && data.last_check_timestamp !== lastProcessedCheckTimestamp) {
                 lastProcessedCheckTimestamp = data.last_check_timestamp;
                 fetchHistory();
             }
 
-            // Store status in dataset for translation updates
             youtubeStatusEl.dataset.status = data.youtube_is_live;
-            obsStatusEl.dataset.status = data.obs_is_streaming;
-            
             updateStatus(youtubeStatusEl, data.youtube_is_live);
-            updateStatus(obsStatusEl, data.obs_is_streaming);
             
+            if (document.activeElement !== youtubeApiKeyInput) youtubeApiKeyInput.value = data.youtube_api_key || '';
+            if (document.activeElement !== youtubeChannelIdInput) youtubeChannelIdInput.value = data.youtube_channel_id || '';
             if (document.activeElement !== checkIntervalInput) checkIntervalInput.value = data.check_interval;
-            if (document.activeElement !== liveModeTimeoutInput) liveModeTimeoutInput.value = data.live_mode_timeout;
-            
-            liveModeSwitch.checked = data.live_mode;
-            obsEnabledSwitch.checked = data.obs_enabled;
-            youtubeEnabledSwitch.checked = data.youtube_enabled;
-            obsEnabledSwitch.disabled = !data.youtube_enabled;
             
             telegramEnabledSwitch.checked = data.telegram_enabled;
             
             if (document.activeElement !== telegramBotTokenInput) telegramBotTokenInput.value = data.telegram_bot_token || '';
             if (document.activeElement !== telegramChatIdInput) telegramChatIdInput.value = data.telegram_chat_id || '';
             
-            telegramNotifyYoutubeSwitch.checked = data.telegram_notify_on_youtube_offline;
-            telegramNotifyObsSwitch.checked = data.telegram_notify_on_obs_offline;
+            telegramNotifyStatusSwitch.checked = data.telegram_notify_on_status_change;
 
-            updateEffectiveIntervalDisplay(data.check_interval, data.live_mode);
-            updateNextCheckCountdown(data.last_check_timestamp, data.check_interval, data.live_mode);
-            updateLiveModeCountdown(data.live_mode, data.live_mode_end_timestamp);
+            updateNextCheckCountdown(data.last_check_timestamp, data.check_interval);
             
             hideSavingIndicator();
         };
@@ -221,13 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (youtubeStatusEl.dataset.status !== undefined) {
             updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status);
         }
-        if (obsStatusEl.dataset.status !== undefined) {
-            updateStatus(obsStatusEl, obsStatusEl.dataset.status);
-        }
         
         if (statusChart) {
             statusChart.data.datasets[0].label = translations.youtube_live_label || 'YouTube Live';
-            statusChart.data.datasets[1].label = translations.obs_streaming_label || 'OBS Streaming';
             statusChart.update();
         }
     }
@@ -249,21 +214,12 @@ document.addEventListener('DOMContentLoaded', () => {
         element.textContent = translations[statusKey] || (isOnline === true || isOnline === 'true' ? 'Online' : 'Offline');
     }
 
-    function updateEffectiveIntervalDisplay(baseInterval, isLiveMode) {
-        const effective = isLiveMode ? 60 : baseInterval;
-        if (translations.effective_interval) {
-            effectiveIntervalEl.textContent = translations.effective_interval.replace('{seconds}', effective);
-        } else {
-            effectiveIntervalEl.textContent = `Effective: ${effective} seconds`;
-        }
-    }
-
-    function updateNextCheckCountdown(lastCheckTimestamp, baseInterval, isLiveMode) {
+    function updateNextCheckCountdown(lastCheckTimestamp, baseInterval) {
         if (nextCheckCountdownInterval) clearInterval(nextCheckCountdownInterval);
         if (!lastCheckTimestamp) return;
 
         const lastCheckTime = new Date(lastCheckTimestamp);
-        const effectiveInterval = isLiveMode ? 60 : baseInterval;
+        const effectiveInterval = baseInterval;
 
         nextCheckCountdownInterval = setInterval(() => {
             const now = new Date();
@@ -272,26 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lastCheckEl.textContent = formatTimeAgo(lastCheckTime);
             nextCheckCountdownEl.textContent = formatSeconds(remaining);
         }, 1000);
-    }
-
-    function updateLiveModeCountdown(isLive, endTime) {
-        if (liveModeCountdownInterval) clearInterval(liveModeCountdownInterval);
-        if (isLive && endTime) {
-            const end = new Date(endTime);
-            liveModeCountdownEl.style.display = 'block';
-            liveModeCountdownInterval = setInterval(() => {
-                const now = new Date();
-                const remaining = Math.max(0, Math.floor((end - now) / 1000));
-                if (translations.live_mode_countdown) {
-                    liveModeCountdownEl.textContent = translations.live_mode_countdown.replace('{time}', formatSeconds(remaining));
-                } else {
-                    liveModeCountdownEl.textContent = `Auto-disable in: ${formatSeconds(remaining)}`;
-                }
-                if (remaining <= 0) clearInterval(liveModeCountdownInterval);
-            }, 1000);
-        } else {
-            liveModeCountdownEl.style.display = 'none';
-        }
     }
 
     function formatTimeAgo(date) {
@@ -319,23 +255,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Listeners
     languageSwitcher.addEventListener('change', (event) => loadLanguage(event.target.value));
+    
+    youtubeApiKeyInput.addEventListener('change', (event) => sendMessage({ youtube_api_key: event.target.value.trim() }));
+    youtubeChannelIdInput.addEventListener('change', (event) => sendMessage({ youtube_channel_id: event.target.value.trim() }));
     checkIntervalInput.addEventListener('change', (event) => sendMessage({ check_interval: parseInt(event.target.value) }));
-    liveModeSwitch.addEventListener('change', (event) => sendMessage({ live_mode: event.target.checked }));
-    liveModeTimeoutInput.addEventListener('change', (event) => sendMessage({ live_mode_timeout: parseInt(event.target.value) }));
-    obsEnabledSwitch.addEventListener('change', (event) => sendMessage({ obs_enabled: event.target.checked }));
-    youtubeEnabledSwitch.addEventListener('change', (event) => {
-        sendMessage({ youtube_enabled: event.target.checked });
-        if (!event.target.checked) {
-            obsEnabledSwitch.checked = false;
-            sendMessage({ obs_enabled: false });
-        }
-    });
-
+    
     telegramEnabledSwitch.addEventListener('change', (event) => sendMessage({ telegram_enabled: event.target.checked }));
     telegramBotTokenInput.addEventListener('change', (event) => sendMessage({ telegram_bot_token: event.target.value.trim() }));
     telegramChatIdInput.addEventListener('change', (event) => sendMessage({ telegram_chat_id: event.target.value.trim() }));
-    telegramNotifyYoutubeSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_youtube_offline: event.target.checked }));
-    telegramNotifyObsSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_obs_offline: event.target.checked }));
+    telegramNotifyStatusSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_status_change: event.target.checked }));
 
     telegramTestBtn.addEventListener('click', async () => {
         telegramTestBtn.disabled = true;
