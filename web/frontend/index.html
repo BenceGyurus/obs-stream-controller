@@ -8,104 +8,89 @@
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-dark text-light">
-    <div class="container py-4">
-        <header class="d-flex justify-content-between align-items-center mb-4">
-            <div class="d-flex align-items-center gap-3">
-                <h1 class="h3 mb-0" data-translate="app_title">Stream Monitor</h1>
-                <span id="saving-indicator" class="badge bg-primary fade" data-translate="saving">Saving...</span>
+<body>
+    <div id="saving-indicator" class="fade" data-translate="saving">Saving Changes...</div>
+
+    <div class="container">
+        <header class="d-flex justify-content-between align-items-center mb-5 fade-in">
+            <div>
+                <h1 data-translate="app_title">Stream Monitor</h1>
+                <p class="text-dim mb-0">YouTube Live Watchdog</p>
             </div>
-            <select id="language-switcher" class="form-select form-select-sm bg-secondary text-light border-0 w-auto">
+            <select id="language-switcher" class="form-select form-select-sm bg-transparent text-light border-0 w-auto fw-bold">
                 <option value="en">English</option>
                 <option value="hu">Magyar</option>
             </select>
         </header>
 
-        <div class="row g-4">
-            <!-- Status Cards -->
-            <div class="col-md-6">
-                <div class="card bg-secondary text-light h-100 border-0 shadow-lg">
-                    <div class="card-body text-center d-flex flex-column justify-content-center py-4">
-                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-3" data-translate="youtube_status">YouTube Status</h5>
-                        <div id="youtube-status" class="display-4 fw-bold py-2 px-4 rounded-pill d-inline-block mx-auto" data-translate="status_unknown">Unknown</div>
-                    </div>
-                </div>
+        <!-- Status Hero -->
+        <section class="status-hero fade-in">
+            <div id="status-badge" class="status-indicator status-offline">
+                <div class="pulse-dot"></div>
+                <span id="youtube-status" data-translate="status_offline">Offline</span>
             </div>
-            <div class="col-md-6">
-                <div class="card bg-secondary text-light h-100 border-0 shadow-lg">
-                    <div class="card-body py-4">
-                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-3" data-translate="last_check">Last Check</h5>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span id="last-check" class="h4 mb-0 fw-bold">--</span>
-                            <button id="check-now-btn" class="btn btn-primary btn-sm px-3 fw-bold" data-translate="check_now">Check Now</button>
-                        </div>
-                        <div class="small opacity-75">
-                            <span data-translate="next_check">Next check in:</span> <span id="next-check-countdown" class="font-monospace fw-bold text-info">--:--</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="mt-3">
+                <span class="label" data-translate="last_check">Last Check</span>
+                <div id="last-check" class="h4 fw-bold">--</div>
             </div>
+        </section>
 
-            <!-- History Chart -->
-            <div class="col-12">
-                <div class="card bg-secondary text-light border-0 shadow-lg">
-                    <div class="card-body">
-                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-4" data-translate="history">History</h5>
-                        <div class="chart-container" style="position: relative; height:300px;">
-                            <canvas id="statusChart"></canvas>
-                        </div>
+        <div class="dashboard-grid">
+            <!-- Analytics Card -->
+            <div class="glass-card fade-in" style="grid-column: 1 / -1; animation-delay: 0.1s;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <span class="label" data-translate="history">Live History</span>
+                    <div class="small text-dim">
+                        <span data-translate="next_check">Next:</span> <span id="next-check-countdown" class="font-monospace text-light">--:--</span>
                     </div>
+                </div>
+                <div class="chart-container" style="height: 200px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="text-center mt-4">
+                    <button id="check-now-btn" class="btn btn-primary px-5" data-translate="check_now">Force Refresh</button>
                 </div>
             </div>
 
             <!-- YouTube Settings -->
-            <div class="col-md-6">
-                <div class="card bg-secondary text-light border-0 shadow-lg h-100">
-                    <div class="card-body py-4">
-                        <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-4" data-translate="youtube_settings">YouTube Settings</h5>
-                        <div class="mb-3">
-                            <label for="youtube-api-key" class="form-label small fw-bold" data-translate="api_key">API Key</label>
-                            <input type="password" class="form-control bg-dark text-light border-0 py-2" id="youtube-api-key">
-                            <div class="form-text text-light opacity-50 small">Stored in ENV or settings.json</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="youtube-channel-id" class="form-label small fw-bold" data-translate="channel_id">Channel ID</label>
-                            <input type="text" class="form-control bg-dark text-light border-0 py-2" id="youtube-channel-id">
-                        </div>
-                        <div class="mb-0">
-                            <label for="check-interval" class="form-label small fw-bold" data-translate="check_interval">Check Interval (seconds)</label>
-                            <input type="number" class="form-control bg-dark text-light border-0 py-2" id="check-interval" min="10" step="10">
-                        </div>
-                    </div>
+            <div class="glass-card fade-in" style="animation-delay: 0.2s;">
+                <h5 class="fw-bold mb-4" data-translate="youtube_settings">System Config</h5>
+                <div class="mb-4">
+                    <div class="label" data-translate="api_key">YouTube API Key</div>
+                    <input type="password" class="form-control" id="youtube-api-key" placeholder="••••••••••••••••">
+                </div>
+                <div class="mb-4">
+                    <div class="label" data-translate="channel_id">Channel ID</div>
+                    <input type="text" class="form-control" id="youtube-channel-id" placeholder="UC...">
+                </div>
+                <div class="mb-0">
+                    <div class="label" data-translate="check_interval">Check Frequency (s)</div>
+                    <input type="number" class="form-control" id="check-interval" min="10" step="10">
                 </div>
             </div>
 
             <!-- Telegram Settings -->
-            <div class="col-md-6">
-                <div class="card bg-secondary text-light border-0 shadow-lg h-100">
-                    <div class="card-body py-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="card-title text-uppercase fw-bold small opacity-75 mb-0" data-translate="telegram_alerts">Telegram Alerts</h5>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="telegram-enabled">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="telegram-bot-token" class="form-label small fw-bold" data-translate="bot_token">Bot Token</label>
-                            <input type="password" class="form-control bg-dark text-light border-0 py-2" id="telegram-bot-token">
-                        </div>
-                        <div class="mb-3">
-                            <label for="telegram-chat-id" class="form-label small fw-bold" data-translate="chat_id">Chat ID</label>
-                            <input type="text" class="form-control bg-dark text-light border-0 py-2" id="telegram-chat-id">
-                        </div>
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" id="telegram-notify-status">
-                                <label class="form-check-label small" for="telegram-notify-status" data-translate="notify_status_change">Notify on status change</label>
-                            </div>
-                            <button id="telegram-test-btn" class="btn btn-outline-info btn-sm px-3 fw-bold" data-translate="send_test">Test</button>
-                        </div>
+            <div class="glass-card fade-in" style="animation-delay: 0.3s;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0" data-translate="telegram_alerts">Alerts</h5>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="telegram-enabled">
                     </div>
+                </div>
+                <div class="mb-4">
+                    <div class="label" data-translate="bot_token">Bot Token</div>
+                    <input type="password" class="form-control" id="telegram-bot-token" placeholder="71234...">
+                </div>
+                <div class="mb-4">
+                    <div class="label" data-translate="chat_id">Chat ID</div>
+                    <input type="text" class="form-control" id="telegram-chat-id" placeholder="-100...">
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="telegram-notify-status">
+                        <label class="form-check-label small text-dim" for="telegram-notify-status" data-translate="notify_status_change">Auto-Notify</label>
+                    </div>
+                    <button id="telegram-test-btn" class="btn btn-outline-info btn-sm px-4 fw-bold" data-translate="send_test">Test</button>
                 </div>
             </div>
         </div>

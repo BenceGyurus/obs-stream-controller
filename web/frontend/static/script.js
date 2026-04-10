@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const youtubeStatusEl = document.getElementById('youtube-status');
+    const statusBadge = document.getElementById('status-badge');
     const youtubeApiKeyInput = document.getElementById('youtube-api-key');
     const youtubeChannelIdInput = document.getElementById('youtube-channel-id');
     const checkIntervalInput = document.getElementById('check-interval');
@@ -24,22 +25,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initChart() {
         const ctx = document.getElementById('statusChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, 'rgba(0, 122, 255, 0.3)');
+        gradient.addColorStop(1, 'rgba(0, 122, 255, 0)');
+
         statusChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [
                     {
-                        label: 'YouTube Live Status',
                         data: [],
-                        borderColor: '#00d1b2',
-                        backgroundColor: 'rgba(0, 209, 178, 0.1)',
+                        borderColor: '#007aff',
+                        borderWidth: 3,
+                        backgroundColor: gradient,
                         fill: true,
                         stepped: true,
                         tension: 0,
-                        pointRadius: 4,
+                        pointRadius: 0,
                         pointHoverRadius: 6,
-                        borderWidth: 3
+                        pointBackgroundColor: '#fff'
                     }
                 ]
             },
@@ -48,35 +53,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAspectRatio: false,
                 scales: {
                     x: {
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                        ticks: { color: 'rgba(255, 255, 255, 0.5)', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+                        display: true,
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 }, maxTicksLimit: 8 }
                     },
                     y: {
-                        min: -0.2,
-                        max: 1.2,
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                        ticks: {
-                            color: 'rgba(255, 255, 255, 0.7)',
-                            stepSize: 1,
-                            callback: function(value) {
-                                if (value === 1) return translations.status_online || 'LIVE';
-                                if (value === 0) return translations.status_offline || 'OFFLINE';
-                                return '';
-                            }
-                        }
+                        min: -0.1,
+                        max: 1.1,
+                        display: false
                     }
                 },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        backgroundColor: '#1e293b',
                         titleColor: '#fff',
                         bodyColor: '#fff',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        displayColors: false,
                         callbacks: {
                             label: function(context) {
-                                return (context.parsed.y === 1 ? (translations.status_online || 'Live') : (translations.status_offline || 'Offline'));
+                                return context.parsed.y === 1 ? 'LIVE' : 'OFFLINE';
                             }
                         }
                     }
@@ -96,8 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateChartData(historyEntries) {
-        if (!statusChart) return;
-        if (!historyEntries.length) return;
+        if (!statusChart || !historyEntries.length) return;
 
         const labels = historyEntries.map(entry => {
             const date = new Date(entry.last_check_timestamp);
@@ -134,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             youtubeStatusEl.dataset.status = data.youtube_is_live;
-            updateStatus(youtubeStatusEl, data.youtube_is_live);
+            updateStatusUI(data.youtube_is_live);
             
             if (document.activeElement !== youtubeApiKeyInput) youtubeApiKeyInput.value = data.youtube_api_key || '';
             if (document.activeElement !== youtubeChannelIdInput) youtubeChannelIdInput.value = data.youtube_channel_id || '';
@@ -185,29 +182,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         if (youtubeStatusEl.dataset.status !== undefined) {
-            updateStatus(youtubeStatusEl, youtubeStatusEl.dataset.status === 'true' || youtubeStatusEl.dataset.status === true);
-        }
-        
-        if (statusChart) {
-            statusChart.update();
+            updateStatusUI(youtubeStatusEl.dataset.status === 'true' || youtubeStatusEl.dataset.status === true);
         }
     }
 
-    function updateStatus(element, isOnline) {
-        element.classList.remove('bg-success', 'bg-danger', 'bg-warning');
-        let statusKey;
+    function updateStatusUI(isOnline) {
+        statusBadge.classList.remove('status-online', 'status-offline');
         if (isOnline === true || isOnline === 'true') {
-            statusKey = 'status_online';
-            element.classList.add('bg-success');
-        } else if (isOnline === false || isOnline === 'false') {
-            statusKey = 'status_offline';
-            element.classList.add('bg-danger');
+            statusBadge.classList.add('status-online');
+            youtubeStatusEl.textContent = translations.status_online || 'LIVE';
         } else {
-            statusKey = 'status_unknown';
-            element.classList.add('bg-warning');
+            statusBadge.classList.add('status-offline');
+            youtubeStatusEl.textContent = translations.status_offline || 'OFFLINE';
         }
-        element.dataset.status = isOnline;
-        element.textContent = translations[statusKey] || (isOnline === true ? 'Live' : 'Offline');
+        statusBadge.dataset.status = isOnline;
     }
 
     function updateNextCheckCountdown(lastCheckTimestamp, baseInterval) {
@@ -251,13 +239,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showSavingIndicator() { 
         savingIndicator.classList.add('show'); 
-        savingIndicator.classList.remove('fade');
     }
     function hideSavingIndicator() { 
         setTimeout(() => {
-            savingIndicator.classList.add('fade');
             savingIndicator.classList.remove('show');
-        }, 500);
+        }, 1000);
     }
 
     // Event Listeners
@@ -315,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Initial Load
-    const savedLang = localStorage.getItem('language') || 'hu'; // Default to Hungarian as per context
+    const savedLang = localStorage.getItem('language') || 'hu';
     languageSwitcher.value = savedLang;
     initChart();
     loadLanguage(savedLang).then(() => {
