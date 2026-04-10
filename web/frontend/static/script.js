@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         displayColors: false,
                         callbacks: {
                             label: function(context) {
-                                return context.parsed.y === 1 ? 'LIVE' : 'OFFLINE';
+                                return context.parsed.y === 1 ? (translations.status_online || 'LIVE') : (translations.status_offline || 'OFFLINE');
                             }
                         }
                     }
@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!statusChart || !historyEntries.length) return;
 
         const labels = historyEntries.map(entry => {
+            if (!entry.last_check_timestamp) return '';
             const date = new Date(entry.last_check_timestamp);
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         });
@@ -130,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchHistory();
             }
 
-            youtubeStatusEl.dataset.status = data.youtube_is_live;
             updateStatusUI(data.youtube_is_live);
             
             if (document.activeElement !== youtubeApiKeyInput) youtubeApiKeyInput.value = data.youtube_api_key || '';
@@ -181,9 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        if (youtubeStatusEl.dataset.status !== undefined) {
-            updateStatusUI(youtubeStatusEl.dataset.status === 'true' || youtubeStatusEl.dataset.status === true);
-        }
+        // Re-run status UI update to use translated strings
+        const currentStatus = statusBadge.classList.contains('status-online');
+        updateStatusUI(currentStatus);
     }
 
     function updateStatusUI(isOnline) {
@@ -195,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
             statusBadge.classList.add('status-offline');
             youtubeStatusEl.textContent = translations.status_offline || 'OFFLINE';
         }
-        statusBadge.dataset.status = isOnline;
     }
 
     function updateNextCheckCountdown(lastCheckTimestamp, baseInterval) {
@@ -243,19 +242,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideSavingIndicator() { 
         setTimeout(() => {
             savingIndicator.classList.remove('show');
-        }, 1000);
+        }, 800);
     }
 
     // Event Listeners
     languageSwitcher.addEventListener('change', (event) => loadLanguage(event.target.value));
     
-    youtubeApiKeyInput.addEventListener('change', (event) => sendMessage({ youtube_api_key: event.target.value.trim() }));
-    youtubeChannelIdInput.addEventListener('change', (event) => sendMessage({ youtube_channel_id: event.target.value.trim() }));
-    checkIntervalInput.addEventListener('change', (event) => sendMessage({ check_interval: parseInt(event.target.value) }));
+    const debouncedSend = (key) => {
+        let timeout;
+        return (event) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                sendMessage({ [key]: event.target.value.trim() });
+            }, 500);
+        };
+    };
+
+    youtubeApiKeyInput.addEventListener('input', debouncedSend('youtube_api_key'));
+    youtubeChannelIdInput.addEventListener('input', debouncedSend('youtube_channel_id'));
+    checkIntervalInput.addEventListener('input', (event) => sendMessage({ check_interval: parseInt(event.target.value) }));
     
     telegramEnabledSwitch.addEventListener('change', (event) => sendMessage({ telegram_enabled: event.target.checked }));
-    telegramBotTokenInput.addEventListener('change', (event) => sendMessage({ telegram_bot_token: event.target.value.trim() }));
-    telegramChatIdInput.addEventListener('change', (event) => sendMessage({ telegram_chat_id: event.target.value.trim() }));
+    telegramBotTokenInput.addEventListener('input', debouncedSend('telegram_bot_token'));
+    telegramChatIdInput.addEventListener('input', debouncedSend('telegram_chat_id'));
     telegramNotifyStatusSwitch.addEventListener('change', (event) => sendMessage({ telegram_notify_on_status_change: event.target.checked }));
 
     telegramTestBtn.addEventListener('click', async () => {
